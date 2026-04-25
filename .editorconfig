@@ -9,6 +9,10 @@ insert_final_newline = true
 trim_trailing_whitespace = true
 
 [*.md]
+# Markdown legitimately uses 3-space continuation indents under numbered list
+# items (Prettier formats them that way). Don't fight it.
+indent_size = unset
+indent_style = unset
 trim_trailing_whitespace = false
 
 [Makefile]
