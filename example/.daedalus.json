@@ -15,14 +15,14 @@
       },
       "nodes": {
         "user": {
-          "x": 80,
-          "y": 16,
+          "x": 32,
+          "y": 160,
           "w": 48,
           "h": 80,
           "connections": {
             "top": [],
-            "right": [],
-            "bottom": ["user->api#0"],
+            "right": ["user->api#0"],
+            "bottom": [],
             "left": []
           }
         },
@@ -32,14 +32,14 @@
           "w": 144,
           "h": 80,
           "connections": {
-            "top": ["user->api#0"],
+            "top": [],
             "right": ["api->queue#0"],
             "bottom": ["api->db#0", "api->cache#0"],
-            "left": []
+            "left": ["user->api#0"]
           }
         },
         "worker": {
-          "x": 624,
+          "x": 592,
           "y": 320,
           "w": 192,
           "h": 80,
@@ -51,7 +51,7 @@
           }
         },
         "cache": {
-          "x": 320,
+          "x": 304,
           "y": 320,
           "w": 96,
           "h": 80,
@@ -75,7 +75,7 @@
           }
         },
         "queue": {
-          "x": 608,
+          "x": 448,
           "y": 160,
           "w": 176,
           "h": 80,
@@ -89,8 +89,8 @@
       },
       "edges": {
         "user->api#0": {
-          "fromSide": "bottom",
-          "toSide": "top"
+          "fromSide": "right",
+          "toSide": "left"
         },
         "api->cache#0": {
           "fromSide": "bottom",

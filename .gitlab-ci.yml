@@ -4,11 +4,15 @@ default:
   image: node:22.21.1-bookworm
   interruptible: true
 
+# GitLab runs the cheap correctness checks on every push. Tag-driven release
+# builds (Linux AppImage/deb, macOS dmg, Windows msi/nsis) live in GitHub
+# Actions; see `.github/workflows/release-desktop.yml`.
+
 variables:
   PNPM_HOME: '$CI_PROJECT_DIR/.pnpm-store'
   npm_config_cache: '$CI_PROJECT_DIR/.npm'
 
-stages: [install, check, build]
+stages: [install, check]
 
 .pnpm-cache: &pnpm-cache
   key:
@@ -56,16 +60,3 @@ test:
     policy: pull
   <<: *setup
   script: [pnpm test]
-
-build:web:
-  stage: build
-  needs: [lint, typecheck, test]
-  cache:
-    <<: *pnpm-cache
-    policy: pull
-  <<: *setup
-  script: [pnpm --filter @daedalus/web build]
-  artifacts:
-    name: 'web-dist-$CI_COMMIT_SHORT_SHA'
-    paths: [packages/web/dist/]
-    expire_in: 14 days
