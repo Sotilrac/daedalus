@@ -36,6 +36,7 @@ export function App(): JSX.Element {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const hostRef = useRef<HTMLElement | null>(null);
   // The most recent layout we wrote; used to skip the next persist if state
   // came back unchanged (e.g. just after a sidecar read).
   const lastPersistedRef = useRef<unknown>(null);
@@ -137,6 +138,51 @@ export function App(): JSX.Element {
     rememberExportDir(finalPath);
   }, [rootPath, layout]);
 
+  const onCenter = useCallback(() => {
+    const host = hostRef.current;
+    const svg = svgRef.current;
+    const currentLayout = useGraphStore.getState().layout;
+    const offset = useGraphStore.getState().viewOffset;
+    if (!host || !svg || !currentLayout) return;
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const sel of ['.nodes', '.edges']) {
+      const g = svg.querySelector<SVGGElement>(sel);
+      if (!g) continue;
+      const b = g.getBBox();
+      if (b.width === 0 && b.height === 0) continue;
+      if (b.x < minX) minX = b.x;
+      if (b.y < minY) minY = b.y;
+      if (b.x + b.width > maxX) maxX = b.x + b.width;
+      if (b.y + b.height > maxY) maxY = b.y + b.height;
+    }
+    if (!Number.isFinite(minX)) return;
+
+    // bbox in natural diagram coords (back out the active offset).
+    const bx = minX - offset.x;
+    const by = minY - offset.y;
+    const bw = maxX - minX;
+    const bh = maxY - minY;
+    const hw = host.clientWidth;
+    const hh = host.clientHeight;
+
+    let nx: number;
+    let ny: number;
+    if (bw <= hw && bh <= hh) {
+      nx = (hw - bw) / 2 - bx;
+      ny = (hh - bh) / 2 - by;
+    } else {
+      const pad = currentLayout.settings.export.margin;
+      nx = pad - bx;
+      ny = pad - by;
+    }
+    useGraphStore.getState().setViewOffset({ x: nx, y: ny });
+    host.scrollTo({ left: 0, top: 0 });
+  }, []);
+
   const onExportPng = useCallback(async () => {
     if (!svgRef.current || !layout) return;
     const defaultPath = exportDefaultPath(rootPath, 'png');
@@ -155,7 +201,9 @@ export function App(): JSX.Element {
   return (
     <div className="app" data-theme={layout?.viewport.theme ?? 'blueprint'}>
       <header className="toolbar">
-        <span className="title">Daedalus</span>
+        <span className="title">
+          Daedalus <span className="version">v{__APP_VERSION__}</span>
+        </span>
         <span className="path">{rootPath ?? 'no folder open'}</span>
         <span className="spacer" />
         {needsRelayout && <span style={{ color: 'var(--accent)' }}>Layout out of sync</span>}
@@ -188,6 +236,9 @@ export function App(): JSX.Element {
         >
           Relayout
         </button>
+        <button onClick={onCenter} disabled={!layout}>
+          Center
+        </button>
         <button
           onClick={() => setTheme(layout?.viewport.theme === 'paper' ? 'blueprint' : 'paper')}
           disabled={!layout}
@@ -211,7 +262,7 @@ export function App(): JSX.Element {
           {settingsOpen && <SettingsPanel />}
         </span>
       </header>
-      <main className="canvas-host">
+      <main className="canvas-host" ref={hostRef}>
         {!source && (
           <div className="empty-state">
             <h1>Daedalus</h1>
@@ -220,7 +271,10 @@ export function App(): JSX.Element {
           </div>
         )}
         <ErrorOverlay errors={errors} />
-        <CanvasWithRef setRef={(el) => (svgRef.current = el)} />
+        <Canvas
+          ref={svgRef}
+          hostRef={hostRef as unknown as React.RefObject<HTMLDivElement | null>}
+        />
       </main>
     </div>
   );
@@ -310,18 +364,4 @@ function exportDefaultPath(rootPath: string | null, ext: 'svg' | 'png'): string 
 function rememberExportDir(savedPath: string): void {
   if (typeof localStorage === 'undefined') return;
   localStorage.setItem(EXPORT_DIR_KEY, dirOf(savedPath));
-}
-
-function CanvasWithRef({
-  setRef,
-}: {
-  setRef: (el: SVGSVGElement | null) => void;
-}): JSX.Element | null {
-  const plan = useGraphStore((s) => s.plan);
-  if (!plan) return null;
-  return (
-    <div ref={(div) => setRef(div?.querySelector('svg') ?? null)}>
-      <Canvas />
-    </div>
-  );
 }

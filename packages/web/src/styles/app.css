@@ -68,6 +68,14 @@ button:disabled {
   text-transform: uppercase;
 }
 
+.toolbar .title .version {
+  margin-left: 6px;
+  color: var(--ink-muted);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 .toolbar .spacer {
   flex: 1;
 }

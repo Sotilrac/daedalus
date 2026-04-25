@@ -12,16 +12,19 @@ export interface ThemePalette {
   gridDot: string;
 }
 
+// Default "graphite" theme: a CAD / Blender-ish dark gray with a warm orange
+// accent. Theme id stays `blueprint` so older sidecars keep loading; only
+// the colours changed.
 export const blueprintPalette: ThemePalette = {
-  paper: '#0d3b66',
-  paperSunk: '#0a2f54',
-  ink: '#f4f1de',
-  inkMuted: '#7aa6cd',
-  accent: '#fec601',
-  mark: '#fec601',
-  positive: '#a3d9b1',
-  negative: '#ef8b6f',
-  gridDot: '#7aa6cd',
+  paper: '#2b2b2b',
+  paperSunk: '#1f1f1f',
+  ink: '#dcdcdc',
+  inkMuted: '#888888',
+  accent: '#ffaa44',
+  mark: '#ffaa44',
+  positive: '#88c46c',
+  negative: '#e07a6c',
+  gridDot: '#555555',
 };
 
 export const paperPalette: ThemePalette = {

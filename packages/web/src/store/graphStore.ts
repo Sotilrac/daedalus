@@ -29,6 +29,8 @@ export interface GraphState {
   plan: RenderPlan | null;
   selection: NodeId | null;
   needsRelayout: boolean;
+  viewOffset: { x: number; y: number };
+  setViewOffset(o: { x: number; y: number }): void;
   loadFromCompile(opts: {
     files: Record<string, string>;
     inputPath: string;
@@ -56,6 +58,10 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   plan: null,
   selection: null,
   needsRelayout: false,
+  viewOffset: { x: 0, y: 0 },
+  setViewOffset(o) {
+    set({ viewOffset: o });
+  },
 
   async loadFromCompile({ files, inputPath, prevModel, prevLayout }) {
     const outcome = await compileD2({ files, inputPath, layout: 'elk' });
