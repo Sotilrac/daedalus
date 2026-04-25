@@ -1,92 +1,235 @@
-user: User {
-  shape: person
-  style: {
-    fill: "#fec601"
-    stroke: "#fec601"
-    font-color: "#0d3b66"
+vars: {
+  d2-config: {
+    layout-engine: elk
+    pad: 20
   }
 }
 
-edge: Edge {
-  style: {
-    stroke: "#7aa6cd"
-    stroke-width: 2
-    fill: "#1f1f1f"
-    font-color: "#dcdcdc"
-    bold: true
+# ────────────────────────────────────────────
+# Classes
+# ────────────────────────────────────────────
+classes: {
+  group: {
+    style: {
+      fill: transparent
+      stroke: "#9CA3AF"
+      stroke-dash: 3
+      font-color: "#9CA3AF"
+      bold: true
+    }
   }
 
-  cdn: CDN {
+  founder: {
+    shape: person
     style: {
-      fill: "#f4f1de"
-      stroke: "#f4f1de"
+      fill: "#1bc9b4"
+      stroke: "#0d3b66"
+      font-color: "#0d3b66"
+      bold: true
+    }
+  }
+
+  engineer: {
+    shape: person
+    style: {
+      fill: "#fec601"
+      stroke: "#0d3b66"
       font-color: "#0d3b66"
     }
   }
 
-  lb: Load Balancer {
+  villain: {
+    shape: person
     style: {
-      fill: "#f4f1de"
-      stroke: "#f4f1de"
+      fill: "#ef4444"
+      stroke: "#0d3b66"
+      font-color: "#fef2f2"
+      bold: true
+    }
+  }
+
+  investor: {
+    shape: person
+    style: {
+      fill: "#a78bfa"
+      stroke: "#0d3b66"
       font-color: "#0d3b66"
     }
   }
+
+  service: {
+    style: {
+      fill: "#f4f1de"
+      stroke: "#7aa6cd"
+      stroke-width: 2
+      font-color: "#0d3b66"
+      bold: true
+    }
+  }
+
+  storage: {
+    shape: cylinder
+    style: {
+      fill: "#7aa6cd"
+      stroke: "#0d3b66"
+      font-color: "#fefefe"
+      bold: true
+    }
+  }
+
+  cache: {
+    shape: hexagon
+    style: {
+      fill: "#ef8b6f"
+      stroke: "#0d3b66"
+      font-color: "#0d3b66"
+      bold: true
+    }
+  }
+
+  cloud: {
+    shape: cloud
+    style: {
+      fill: "#dcdcdc"
+      stroke: "#7aa6cd"
+      font-color: "#0d3b66"
+    }
+  }
+
+  jobqueue: {
+    shape: queue
+    style: {
+      fill: "#f4f1de"
+      stroke: "#0d3b66"
+      font-color: "#0d3b66"
+    }
+  }
+
+  decision: {
+    shape: diamond
+    style: {
+      fill: "#fec601"
+      stroke: "#0d3b66"
+      font-color: "#0d3b66"
+    }
+  }
+
+  secret: {
+    shape: hexagon
+    style: {
+      fill: "#1bc9b4"
+      stroke: "#0d3b66"
+      stroke-width: 3
+      font-color: "#0d3b66"
+      bold: true
+    }
+  }
+
+  app: {
+    shape: parallelogram
+    style: {
+      fill: "#a3d9b1"
+      stroke: "#0d3b66"
+      font-color: "#0d3b66"
+    }
+  }
+
+  # ── Edge classes ──
+  signature: {style: {stroke: "#1bc9b4"; stroke-width: 3}}                          # the middle-out magic
+  ship: {style: {stroke: "#1bc9b4"; stroke-width: 2}}                               # productized signature
+  data: {style: {stroke: "#7aa6cd"; stroke-width: 2}}                               # pipeline data flow
+  optimize: {style: {stroke: "#0d3b66"}}                                            # engineer touch
+  cache: {style: {stroke: "#ef8b6f"}}                                               # cache writes
+  shard: {style: {stroke: "#a3d9b1"}}                                               # distribute / power
+  hostile: {style: {stroke: "#ef4444"}}                                             # hooli aggression
+  theft: {style: {stroke: "#ef4444"; stroke-dash: 4}}                               # clone / poach
+  lawsuit: {style: {stroke: "#ef4444"; stroke-width: 3; stroke-dash: 5}}            # legal warfare
+  money: {style: {stroke: "#a78bfa"}}                                               # purple, allegiance
+  investment: {style: {stroke: "#a78bfa"; stroke-width: 2}}                         # big money in
+  hedge: {style: {stroke: "#a78bfa"; stroke-dash: 3}}                               # quiet bet
+  quirk: {style: {stroke: "#fec601"}}                                               # erlich-yellow
+  whim: {style: {stroke-dash: 4}}                                                   # whimsical
 }
 
-api: API Gateway {
-  style: {
-    fill: "#f4f1de"
-    stroke: "#f4f1de"
-    stroke-width: 2
-    font-color: "#0d3b66"
-    bold: true
+# ────────────────────────────────────────────
+# Pied Piper HQ (the Hacker Hostel, 5230 Newell Rd)
+# ────────────────────────────────────────────
+piedpiper: Pied Piper {
+  class: group
+
+  founders: Founders {
+    class: group
+
+    richard: Richard Hendricks {class: founder}
+    erlich: Erlich Bachman, 10pct {class: founder}
+    jared: Jared (Donald) Dunn {class: founder}
   }
+
+  eng: Engineering {
+    class: group
+
+    gilfoyle: Gilfoyle, Sysadmin {class: engineer}
+    dinesh: Dinesh, Java Apologist {class: engineer}
+    bighead: Big Head, VP of Special Projects {class: engineer}
+  }
+
+  middleout: Middle-Out Compression {class: secret}
+  pipey: Pipey the Mascot {class: app}
 }
 
-apib: API Backend {
-  style: {
-    fill: "#f4f1de"
-    stroke: "#f4f1de"
-    stroke-width: 2
-    font-color: "#0d3b66"
-    bold: true
-  }
+# ────────────────────────────────────────────
+# The Compression Pipeline (the actual product)
+# ────────────────────────────────────────────
+pipeline: Compression Pipeline {
+  class: group
+
+  ingestor: File Ingestor {class: service}
+  weissman: Weissman Scorer {class: secret}
+  tiptotip: Tip-to-Tip Efficiency {class: secret}
+  output: Compressed Blob {class: jobqueue}
+  cache: Hot Blob Cache {class: cache}
+  blobstore: Distributed Blob Store {class: storage}
 }
 
-worker: Background Worker {
-  style: {
-    fill: "#a3d9b1"
-    stroke: "#a3d9b1"
-    font-color: "#0d3b66"
-  }
+# ────────────────────────────────────────────
+# The New Internet (peer-to-peer, no servers)
+# ────────────────────────────────────────────
+newinternet: The New Internet {
+  class: group
+
+  phone: Anton's Phone {class: storage}
+  fridge: Smart Fridge {class: storage}
+  condorcam: Condor Cam {class: storage}
 }
 
-cache: Redis {
-  shape: hexagon
-  style: {
-    fill: "#ef8b6f"
-    stroke: "#ef8b6f"
-    font-color: "#0d3b66"
-    bold: true
-  }
+# ────────────────────────────────────────────
+# Hooli (the empire striking back)
+# ────────────────────────────────────────────
+hooli: Hooli {
+  class: group
+
+  gavin: Gavin Belson {class: villain}
+  endframe: EndFrame {class: villain}
+  nucleus: Nucleus {class: service}
+  hoolicloud: Hooli Cloud {class: cloud}
+  hoolixyz: Hooli XYZ {class: service}
 }
 
-db: Postgres {
-  shape: cylinder
-  style: {
-    fill: "#7aa6cd"
-    stroke: "#7aa6cd"
-    stroke-width: 2
-    font-color: "#0d3b66"
-    bold: true
-  }
+# ────────────────────────────────────────────
+# Capital
+# ────────────────────────────────────────────
+money: Capital {
+  class: group
+
+  russ: Russ Hanneman, Tres Commas {class: investor}
+  laurie: Laurie Bream {class: investor}
+  raviga: Raviga Capital {class: cloud}
+  monica: Monica Hall {class: investor}
 }
 
-queue: Job Queue {
-  shape: queue
-  style: {
-    fill: "#f4f1de"
-    stroke: "#f4f1de"
-    font-color: "#0d3b66"
-  }
-}
+# ────────────────────────────────────────────
+# Standalone whimsy
+# ────────────────────────────────────────────
+nothotdog: Not Hotdog {class: decision}
+seefood: SeeFood Tech {class: app}
+aviato: Aviato (Exited) {class: app}

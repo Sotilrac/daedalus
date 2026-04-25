@@ -4,8 +4,8 @@
       "version": 1,
       "grid": {
         "size": 16,
-        "cols": 80,
-        "rows": 114
+        "cols": 137,
+        "rows": 311
       },
       "viewport": {
         "zoom": 1,
@@ -25,71 +25,29 @@
         }
       },
       "nodes": {
-        "user": {
-          "x": -480,
-          "y": 352,
-          "w": 80,
-          "h": 80,
-          "connections": {
-            "top": [],
-            "right": ["user->edge.cdn#0", "user->edge.lb#0"],
-            "bottom": [],
-            "left": []
-          }
-        },
-        "edge": {
-          "x": -48,
-          "y": 288,
-          "w": 352,
-          "h": 160,
-          "connections": {
-            "top": [],
-            "right": ["edge->api#0"],
-            "bottom": [],
-            "left": []
-          }
-        },
-        "edge.cdn": {
-          "x": 0,
-          "y": 320,
-          "w": 80,
-          "h": 80,
-          "connections": {
-            "top": [],
-            "right": [],
-            "bottom": [],
-            "left": ["user->edge.cdn#0"]
-          }
-        },
-        "edge.lb": {
-          "x": 96,
-          "y": 320,
-          "w": 160,
-          "h": 80,
-          "connections": {
-            "top": [],
-            "right": [],
-            "bottom": ["user->edge.lb#0", "edge.lb->queue#0"],
-            "left": []
-          }
-        },
-        "api": {
+        "piedpiper": {
           "x": 320,
-          "y": 576,
-          "w": 144,
-          "h": 80,
+          "y": 2720,
+          "w": 1264,
+          "h": 1424,
           "connections": {
-            "top": ["edge->api#0"],
+            "top": [
+              "money.russ->piedpiper#0",
+              "money.raviga->piedpiper#0",
+              "hooli.gavin->piedpiper#0"
+            ],
             "right": [],
-            "bottom": ["api->queue#0", "api->cache#0", "api->db#0"],
+            "bottom": [
+              "piedpiper->pipeline#0"
+            ],
             "left": []
           }
         },
-        "apib": {
-          "x": 400,
-          "y": 432,
-          "w": 144,
-          "h": 80,
+        "piedpiper.founders": {
+          "x": 480,
+          "y": 2768,
+          "w": 512,
+          "h": 640,
           "connections": {
             "top": [],
             "right": [],
@@ -97,97 +55,698 @@
             "left": []
           }
         },
-        "worker": {
-          "x": 0,
-          "y": 896,
-          "w": 192,
+        "piedpiper.founders.richard": {
+          "x": 592,
+          "y": 3136,
+          "w": 144,
           "h": 96,
           "connections": {
-            "top": ["queue->worker#0"],
+            "top": [
+              "piedpiper.founders.jared->piedpiper.founders.richard#0",
+              "money.monica->piedpiper.founders.richard#0"
+            ],
             "right": [],
-            "bottom": ["worker->db#0", "worker->cache#0"],
+            "bottom": [
+              "piedpiper.founders.richard->newinternet#0",
+              "piedpiper.founders.richard->piedpiper.middleout#0"
+            ],
             "left": []
           }
         },
-        "cache": {
-          "x": 224,
-          "y": 1392,
+        "piedpiper.founders.erlich": {
+          "x": 768,
+          "y": 3120,
+          "w": 176,
+          "h": 128,
+          "connections": {
+            "top": [],
+            "right": [],
+            "bottom": [
+              "piedpiper.founders.erlich->aviato#0",
+              "piedpiper.founders.erlich->piedpiper.middleout#0",
+              "piedpiper.founders.erlich->piedpiper.pipey#0"
+            ],
+            "left": []
+          }
+        },
+        "piedpiper.founders.jared": {
+          "x": 528,
+          "y": 2816,
+          "w": 176,
+          "h": 112,
+          "connections": {
+            "top": [],
+            "right": [],
+            "bottom": [
+              "piedpiper.founders.jared->piedpiper.founders.richard#0"
+            ],
+            "left": []
+          }
+        },
+        "piedpiper.eng": {
+          "x": 1008,
+          "y": 2800,
+          "w": 544,
+          "h": 592,
+          "connections": {
+            "top": [],
+            "right": [],
+            "bottom": [],
+            "left": []
+          }
+        },
+        "piedpiper.eng.gilfoyle": {
+          "x": 1184,
+          "y": 3216,
+          "w": 160,
+          "h": 112,
+          "connections": {
+            "top": [
+              "piedpiper.eng.dinesh->piedpiper.eng.gilfoyle#0"
+            ],
+            "right": [
+              "piedpiper.eng.bighead->piedpiper.eng.gilfoyle#0"
+            ],
+            "bottom": [
+              "piedpiper.eng.gilfoyle->piedpiper.middleout#0"
+            ],
+            "left": []
+          }
+        },
+        "piedpiper.eng.dinesh": {
+          "x": 1056,
+          "y": 2896,
+          "w": 176,
+          "h": 128,
+          "connections": {
+            "top": [],
+            "right": [],
+            "bottom": [
+              "piedpiper.eng.dinesh->piedpiper.middleout#0",
+              "piedpiper.eng.dinesh->piedpiper.eng.gilfoyle#0"
+            ],
+            "left": []
+          }
+        },
+        "piedpiper.eng.bighead": {
+          "x": 1248,
+          "y": 2848,
+          "w": 240,
+          "h": 160,
+          "connections": {
+            "top": [
+              "hooli.hoolixyz->piedpiper.eng.bighead#0"
+            ],
+            "right": [],
+            "bottom": [
+              "piedpiper.eng.bighead->piedpiper.eng.gilfoyle#0",
+              "piedpiper.eng.bighead->nothotdog#0"
+            ],
+            "left": []
+          }
+        },
+        "piedpiper.middleout": {
+          "x": 512,
+          "y": 4064,
+          "w": 304,
+          "h": 80,
+          "connections": {
+            "top": [
+              "hooli.nucleus->piedpiper.middleout#0",
+              "hooli.endframe->piedpiper.middleout#0",
+              "piedpiper.founders.richard->piedpiper.middleout#0",
+              "piedpiper.founders.erlich->piedpiper.middleout#0",
+              "piedpiper.eng.dinesh->piedpiper.middleout#0",
+              "piedpiper.eng.gilfoyle->piedpiper.middleout#0"
+            ],
+            "right": [],
+            "bottom": [
+              "piedpiper.middleout->pipeline.ingestor#0"
+            ],
+            "left": []
+          }
+        },
+        "piedpiper.pipey": {
+          "x": 1248,
+          "y": 3824,
+          "w": 224,
+          "h": 80,
+          "connections": {
+            "top": [
+              "piedpiper.founders.erlich->piedpiper.pipey#0"
+            ],
+            "right": [],
+            "bottom": [],
+            "left": []
+          }
+        },
+        "pipeline": {
+          "x": 1584,
+          "y": 656,
+          "w": 608,
+          "h": 800,
+          "connections": {
+            "top": [],
+            "right": [],
+            "bottom": [
+              "pipeline->newinternet#0"
+            ],
+            "left": [
+              "piedpiper->pipeline#0"
+            ]
+          }
+        },
+        "pipeline.ingestor": {
+          "x": 1648,
+          "y": 704,
+          "w": 144,
+          "h": 80,
+          "connections": {
+            "top": [],
+            "right": [
+              "pipeline.ingestor->pipeline.weissman#0"
+            ],
+            "bottom": [],
+            "left": [
+              "piedpiper.middleout->pipeline.ingestor#0"
+            ]
+          }
+        },
+        "pipeline.weissman": {
+          "x": 1888,
+          "y": 704,
+          "w": 224,
+          "h": 80,
+          "connections": {
+            "top": [],
+            "right": [],
+            "bottom": [
+              "pipeline.weissman->pipeline.tiptotip#0"
+            ],
+            "left": [
+              "pipeline.ingestor->pipeline.weissman#0"
+            ]
+          }
+        },
+        "pipeline.tiptotip": {
+          "x": 1872,
+          "y": 848,
+          "w": 256,
+          "h": 80,
+          "connections": {
+            "top": [
+              "pipeline.weissman->pipeline.tiptotip#0"
+            ],
+            "right": [],
+            "bottom": [
+              "pipeline.tiptotip->pipeline.output#0"
+            ],
+            "left": []
+          }
+        },
+        "pipeline.output": {
+          "x": 1888,
+          "y": 976,
+          "w": 224,
+          "h": 80,
+          "connections": {
+            "top": [
+              "pipeline.tiptotip->pipeline.output#0"
+            ],
+            "right": [],
+            "bottom": [
+              "pipeline.output->pipeline.cache#0",
+              "pipeline.output->pipeline.blobstore#0"
+            ],
+            "left": []
+          }
+        },
+        "pipeline.cache": {
+          "x": 1856,
+          "y": 1120,
+          "w": 128,
+          "h": 96,
+          "connections": {
+            "top": [
+              "pipeline.output->pipeline.cache#0"
+            ],
+            "right": [],
+            "bottom": [
+              "pipeline.cache->pipeline.blobstore#0"
+            ],
+            "left": []
+          }
+        },
+        "pipeline.blobstore": {
+          "x": 1904,
+          "y": 1280,
+          "w": 208,
+          "h": 128,
+          "connections": {
+            "top": [
+              "pipeline.cache->pipeline.blobstore#0",
+              "pipeline.output->pipeline.blobstore#0"
+            ],
+            "right": [],
+            "bottom": [
+              "pipeline.blobstore->newinternet.phone#0",
+              "pipeline.blobstore->newinternet.fridge#0",
+              "pipeline.blobstore->newinternet.condorcam#0"
+            ],
+            "left": []
+          }
+        },
+        "newinternet": {
+          "x": 1568,
+          "y": 4416,
+          "w": 560,
+          "h": 224,
+          "connections": {
+            "top": [
+              "piedpiper.founders.richard->newinternet#0",
+              "pipeline->newinternet#0"
+            ],
+            "right": [],
+            "bottom": [],
+            "left": []
+          }
+        },
+        "newinternet.phone": {
+          "x": 1616,
+          "y": 4464,
+          "w": 160,
+          "h": 128,
+          "connections": {
+            "top": [
+              "pipeline.blobstore->newinternet.phone#0"
+            ],
+            "right": [],
+            "bottom": [],
+            "left": []
+          }
+        },
+        "newinternet.fridge": {
+          "x": 1792,
+          "y": 4464,
+          "w": 144,
+          "h": 128,
+          "connections": {
+            "top": [
+              "pipeline.blobstore->newinternet.fridge#0"
+            ],
+            "right": [],
+            "bottom": [],
+            "left": []
+          }
+        },
+        "newinternet.condorcam": {
+          "x": 1952,
+          "y": 4464,
+          "w": 144,
+          "h": 128,
+          "connections": {
+            "top": [
+              "pipeline.blobstore->newinternet.condorcam#0"
+            ],
+            "right": [],
+            "bottom": [
+              "newinternet.condorcam->hooli.gavin#0"
+            ],
+            "left": []
+          }
+        },
+        "hooli": {
+          "x": 848,
+          "y": 16,
+          "w": 576,
+          "h": 576,
+          "connections": {
+            "top": [],
+            "right": [],
+            "bottom": [],
+            "left": [
+              "money.raviga->hooli#0"
+            ]
+          }
+        },
+        "hooli.gavin": {
+          "x": 992,
+          "y": 64,
+          "w": 128,
+          "h": 80,
+          "connections": {
+            "top": [
+              "newinternet.condorcam->hooli.gavin#0"
+            ],
+            "right": [
+              "hooli.gavin->hooli.hoolixyz#0"
+            ],
+            "bottom": [
+              "hooli.gavin->piedpiper#0",
+              "hooli.gavin->hooli.nucleus#0"
+            ],
+            "left": []
+          }
+        },
+        "hooli.endframe": {
+          "x": 880,
+          "y": 64,
           "w": 96,
           "h": 80,
           "connections": {
-            "top": ["worker->cache#0", "api->cache#0"],
+            "top": [],
             "right": [],
-            "bottom": ["cache->db#0"],
+            "bottom": [
+              "hooli.endframe->piedpiper.middleout#0"
+            ],
             "left": []
           }
         },
-        "db": {
-          "x": 208,
-          "y": 1632,
-          "w": 128,
-          "h": 128,
+        "hooli.nucleus": {
+          "x": 1072,
+          "y": 336,
+          "w": 112,
+          "h": 80,
           "connections": {
-            "top": ["worker->db#0", "cache->db#0", "api->db#0"],
+            "top": [
+              "hooli.gavin->hooli.nucleus#0"
+            ],
+            "right": [
+              "hooli.nucleus->hooli.hoolicloud#0"
+            ],
+            "bottom": [
+              "hooli.nucleus->piedpiper.middleout#0"
+            ],
+            "left": []
+          }
+        },
+        "hooli.hoolicloud": {
+          "x": 1184,
+          "y": 480,
+          "w": 96,
+          "h": 64,
+          "connections": {
+            "top": [
+              "hooli.nucleus->hooli.hoolicloud#0"
+            ],
             "right": [],
             "bottom": [],
             "left": []
           }
         },
-        "queue": {
-          "x": 0,
-          "y": 752,
-          "w": 192,
+        "hooli.hoolixyz": {
+          "x": 1312,
+          "y": 272,
+          "w": 96,
           "h": 64,
           "connections": {
-            "top": ["edge.lb->queue#0", "api->queue#0"],
+            "top": [
+              "hooli.gavin->hooli.hoolixyz#0"
+            ],
+            "right": [
+              "seefood->hooli.hoolixyz#0"
+            ],
+            "bottom": [
+              "hooli.hoolixyz->piedpiper.eng.bighead#0"
+            ],
+            "left": []
+          }
+        },
+        "money": {
+          "x": 144,
+          "y": 16,
+          "w": 608,
+          "h": 560,
+          "connections": {
+            "top": [],
             "right": [],
-            "bottom": ["queue->worker#0"],
+            "bottom": [],
+            "left": []
+          }
+        },
+        "money.russ": {
+          "x": 192,
+          "y": 336,
+          "w": 240,
+          "h": 160,
+          "connections": {
+            "top": [],
+            "right": [],
+            "bottom": [
+              "money.russ->piedpiper#0"
+            ],
+            "left": []
+          }
+        },
+        "money.laurie": {
+          "x": 432,
+          "y": 64,
+          "w": 112,
+          "h": 80,
+          "connections": {
+            "top": [],
+            "right": [],
+            "bottom": [
+              "money.laurie->money.raviga#0"
+            ],
+            "left": []
+          }
+        },
+        "money.raviga": {
+          "x": 448,
+          "y": 384,
+          "w": 192,
+          "h": 96,
+          "connections": {
+            "top": [
+              "money.laurie->money.raviga#0",
+              "money.monica->money.raviga#0"
+            ],
+            "right": [
+              "money.raviga->hooli#0"
+            ],
+            "bottom": [
+              "money.raviga->piedpiper#0"
+            ],
+            "left": []
+          }
+        },
+        "money.monica": {
+          "x": 608,
+          "y": 64,
+          "w": 112,
+          "h": 80,
+          "connections": {
+            "top": [],
+            "right": [],
+            "bottom": [
+              "money.monica->money.raviga#0",
+              "money.monica->piedpiper.founders.richard#0"
+            ],
+            "left": []
+          }
+        },
+        "nothotdog": {
+          "x": 1872,
+          "y": 256,
+          "w": 160,
+          "h": 96,
+          "connections": {
+            "top": [
+              "piedpiper.eng.bighead->nothotdog#0"
+            ],
+            "right": [],
+            "bottom": [],
+            "left": [
+              "nothotdog->seefood#0"
+            ]
+          }
+        },
+        "seefood": {
+          "x": 1584,
+          "y": 272,
+          "w": 160,
+          "h": 64,
+          "connections": {
+            "top": [],
+            "right": [
+              "nothotdog->seefood#0"
+            ],
+            "bottom": [],
+            "left": [
+              "seefood->hooli.hoolixyz#0"
+            ]
+          }
+        },
+        "aviato": {
+          "x": 272,
+          "y": 4416,
+          "w": 208,
+          "h": 80,
+          "connections": {
+            "top": [
+              "piedpiper.founders.erlich->aviato#0"
+            ],
+            "right": [],
+            "bottom": [],
             "left": []
           }
         }
       },
       "edges": {
-        "user->edge.cdn#0": {
+        "piedpiper.founders.richard->piedpiper.middleout#0": {
+          "fromSide": "bottom",
+          "toSide": "top"
+        },
+        "piedpiper.founders.jared->piedpiper.founders.richard#0": {
+          "fromSide": "bottom",
+          "toSide": "top"
+        },
+        "piedpiper.founders.erlich->piedpiper.middleout#0": {
+          "fromSide": "bottom",
+          "toSide": "top"
+        },
+        "piedpiper.founders.erlich->piedpiper.pipey#0": {
+          "fromSide": "bottom",
+          "toSide": "top"
+        },
+        "piedpiper.eng.gilfoyle->piedpiper.middleout#0": {
+          "fromSide": "bottom",
+          "toSide": "top"
+        },
+        "piedpiper.eng.dinesh->piedpiper.middleout#0": {
+          "fromSide": "bottom",
+          "toSide": "top"
+        },
+        "piedpiper.eng.dinesh->piedpiper.eng.gilfoyle#0": {
+          "fromSide": "bottom",
+          "toSide": "top"
+        },
+        "piedpiper.eng.bighead->piedpiper.eng.gilfoyle#0": {
+          "fromSide": "bottom",
+          "toSide": "right"
+        },
+        "piedpiper.middleout->pipeline.ingestor#0": {
+          "fromSide": "bottom",
+          "toSide": "left"
+        },
+        "pipeline.ingestor->pipeline.weissman#0": {
           "fromSide": "right",
           "toSide": "left"
         },
-        "user->edge.lb#0": {
+        "pipeline.weissman->pipeline.tiptotip#0": {
+          "fromSide": "bottom",
+          "toSide": "top"
+        },
+        "pipeline.tiptotip->pipeline.output#0": {
+          "fromSide": "bottom",
+          "toSide": "top"
+        },
+        "pipeline.output->pipeline.cache#0": {
+          "fromSide": "bottom",
+          "toSide": "top"
+        },
+        "pipeline.cache->pipeline.blobstore#0": {
+          "fromSide": "bottom",
+          "toSide": "top"
+        },
+        "pipeline.output->pipeline.blobstore#0": {
+          "fromSide": "bottom",
+          "toSide": "top"
+        },
+        "piedpiper->pipeline#0": {
+          "fromSide": "bottom",
+          "toSide": "left"
+        },
+        "pipeline->newinternet#0": {
+          "fromSide": "bottom",
+          "toSide": "top"
+        },
+        "piedpiper.founders.richard->newinternet#0": {
+          "fromSide": "bottom",
+          "toSide": "top"
+        },
+        "pipeline.blobstore->newinternet.phone#0": {
+          "fromSide": "bottom",
+          "toSide": "top"
+        },
+        "pipeline.blobstore->newinternet.fridge#0": {
+          "fromSide": "bottom",
+          "toSide": "top"
+        },
+        "pipeline.blobstore->newinternet.condorcam#0": {
+          "fromSide": "bottom",
+          "toSide": "top"
+        },
+        "hooli.gavin->piedpiper#0": {
+          "fromSide": "bottom",
+          "toSide": "top"
+        },
+        "hooli.gavin->hooli.nucleus#0": {
+          "fromSide": "bottom",
+          "toSide": "top"
+        },
+        "hooli.nucleus->piedpiper.middleout#0": {
+          "fromSide": "bottom",
+          "toSide": "top"
+        },
+        "hooli.nucleus->hooli.hoolicloud#0": {
           "fromSide": "right",
-          "toSide": "bottom"
+          "toSide": "top"
         },
-        "edge->api#0": {
+        "hooli.endframe->piedpiper.middleout#0": {
+          "fromSide": "bottom",
+          "toSide": "top"
+        },
+        "hooli.gavin->hooli.hoolixyz#0": {
           "fromSide": "right",
           "toSide": "top"
         },
-        "api->cache#0": {
+        "hooli.hoolixyz->piedpiper.eng.bighead#0": {
           "fromSide": "bottom",
           "toSide": "top"
         },
-        "api->db#0": {
+        "money.russ->piedpiper#0": {
           "fromSide": "bottom",
           "toSide": "top"
         },
-        "cache->db#0": {
+        "money.raviga->piedpiper#0": {
           "fromSide": "bottom",
           "toSide": "top"
         },
-        "api->queue#0": {
+        "money.laurie->money.raviga#0": {
           "fromSide": "bottom",
           "toSide": "top"
         },
-        "queue->worker#0": {
+        "money.monica->money.raviga#0": {
           "fromSide": "bottom",
           "toSide": "top"
         },
-        "worker->db#0": {
+        "money.monica->piedpiper.founders.richard#0": {
           "fromSide": "bottom",
           "toSide": "top"
         },
-        "worker->cache#0": {
+        "money.raviga->hooli#0": {
+          "fromSide": "right",
+          "toSide": "left"
+        },
+        "piedpiper.founders.erlich->aviato#0": {
           "fromSide": "bottom",
           "toSide": "top"
         },
-        "edge.lb->queue#0": {
+        "piedpiper.eng.bighead->nothotdog#0": {
+          "fromSide": "bottom",
+          "toSide": "top"
+        },
+        "nothotdog->seefood#0": {
+          "fromSide": "left",
+          "toSide": "right"
+        },
+        "seefood->hooli.hoolixyz#0": {
+          "fromSide": "left",
+          "toSide": "right"
+        },
+        "newinternet.condorcam->hooli.gavin#0": {
           "fromSide": "bottom",
           "toSide": "top"
         }

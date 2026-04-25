@@ -1,4 +1,4 @@
-import type { EdgeRoutes, Layout, Model, Point, ShapeKind } from '../model/types.js';
+import type { EdgeRoutes, LabelPosition, Layout, Model, Point, ShapeKind } from '../model/types.js';
 import { isContainer } from '../model/ids.js';
 import { gridPattern } from './grid.js';
 import {
@@ -30,11 +30,21 @@ export interface RenderNode {
   w: number;
   h: number;
   label: string;
+  // Resolved local-coord placement for the label text element, derived from
+  // D2's `labelPosition` hint. The values are SVG-attribute-ready.
+  labelPlacement: LabelPlacement;
   style: ReturnType<typeof resolveNodeStyle>;
   // True when at least one other node id is a deep-ref child of this one.
   // Container nodes render behind edges so the connections that target them
   // (or pass over them) stay visible.
   isContainer: boolean;
+}
+
+export interface LabelPlacement {
+  x: number;
+  y: number;
+  textAnchor: 'start' | 'middle' | 'end';
+  dominantBaseline: 'hanging' | 'central' | 'auto';
 }
 
 export interface RenderEdge {
@@ -72,6 +82,7 @@ export function buildRenderPlan({ model, layout, routes, theme }: BuildPlanInput
       w,
       h,
       label: n.label,
+      labelPlacement: resolveLabelPlacement(n.labelPosition, w, h),
       style: resolveNodeStyle(palette, n.style),
       isContainer: isContainer(nodeIds, id),
     };
@@ -128,6 +139,109 @@ export function labelPoint(route: readonly Point[]): Point {
     acc += len;
   }
   return route[route.length - 1] ?? { x: 0, y: 0 };
+}
+
+// Map D2's `labelPosition` enum (e.g. "INSIDE_TOP_CENTER", "OUTSIDE_BOTTOM_LEFT")
+// onto local-coord SVG attributes. Falls back to centered-inside when the
+// position is missing, unset, or unrecognised. Coords are local to the
+// node's group origin, so a negative `y` puts the label above the box.
+const LABEL_INSET = 6;
+
+export function resolveLabelPlacement(
+  position: LabelPosition | undefined,
+  w: number,
+  h: number,
+): LabelPlacement {
+  const fallback: LabelPlacement = {
+    x: w / 2,
+    y: h / 2,
+    textAnchor: 'middle',
+    dominantBaseline: 'central',
+  };
+  if (!position || position === 'UNSET_LABEL_POSITION') return fallback;
+  const parts = position.split('_');
+  if (parts.length !== 3) return fallback;
+  const [zone, vert, horiz] = parts;
+
+  let { x, y, textAnchor, dominantBaseline } = fallback;
+
+  if (zone === 'OUTSIDE') {
+    if (vert === 'TOP') {
+      y = -LABEL_INSET;
+      dominantBaseline = 'auto';
+    } else if (vert === 'BOTTOM') {
+      y = h + LABEL_INSET;
+      dominantBaseline = 'hanging';
+    } else {
+      y = h / 2;
+      dominantBaseline = 'central';
+    }
+    if (vert === 'MIDDLE') {
+      // Labels to the left/right of the shape.
+      if (horiz === 'LEFT') {
+        x = -LABEL_INSET;
+        textAnchor = 'end';
+      } else if (horiz === 'RIGHT') {
+        x = w + LABEL_INSET;
+        textAnchor = 'start';
+      } else {
+        x = w / 2;
+        textAnchor = 'middle';
+      }
+    } else {
+      // Above or below: anchor horizontally inside the column.
+      if (horiz === 'LEFT') {
+        x = 0;
+        textAnchor = 'start';
+      } else if (horiz === 'RIGHT') {
+        x = w;
+        textAnchor = 'end';
+      } else {
+        x = w / 2;
+        textAnchor = 'middle';
+      }
+    }
+  } else if (zone === 'BORDER') {
+    // Sit centered on the edge line.
+    if (vert === 'TOP') y = 0;
+    else if (vert === 'BOTTOM') y = h;
+    else y = h / 2;
+    dominantBaseline = 'central';
+    if (horiz === 'LEFT') {
+      x = LABEL_INSET;
+      textAnchor = 'start';
+    } else if (horiz === 'RIGHT') {
+      x = w - LABEL_INSET;
+      textAnchor = 'end';
+    } else {
+      x = w / 2;
+      textAnchor = 'middle';
+    }
+  } else {
+    // Default to INSIDE for unknown zones.
+    if (vert === 'TOP') {
+      y = LABEL_INSET;
+      dominantBaseline = 'hanging';
+    } else if (vert === 'BOTTOM') {
+      y = h - LABEL_INSET;
+      dominantBaseline = 'auto';
+    } else {
+      y = h / 2;
+      dominantBaseline = 'central';
+    }
+    if (horiz === 'LEFT') {
+      x = LABEL_INSET;
+      textAnchor = 'start';
+    } else if (horiz === 'RIGHT') {
+      x = w - LABEL_INSET;
+      textAnchor = 'end';
+    } else {
+      x = w / 2;
+      textAnchor = 'middle';
+    }
+  }
+
+  return { x, y, textAnchor, dominantBaseline };
 }
 
 export function polylineToPath(points: readonly Point[]): string {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildRenderPlan, polylineToPath } from '../src/render/svg.js';
+import { buildRenderPlan, polylineToPath, resolveLabelPlacement } from '../src/render/svg.js';
 import type { Layout, Model } from '../src/model/types.js';
 
 const model: Model = {
@@ -65,5 +65,50 @@ describe('render plan', () => {
     expect(plan.nodes[0]?.style.fill).toBe('#fff');
     expect(plan.nodes[1]?.style.fill).toBe(plan.palette.paperSunk);
     expect(plan.edges[0]?.path).toBe('M 96 32 L 256 32');
+  });
+});
+
+describe('resolveLabelPlacement', () => {
+  it('centers when no position is given', () => {
+    expect(resolveLabelPlacement(undefined, 100, 60)).toEqual({
+      x: 50,
+      y: 30,
+      textAnchor: 'middle',
+      dominantBaseline: 'central',
+    });
+  });
+
+  it('places INSIDE_TOP_CENTER near the top edge with hanging baseline', () => {
+    const p = resolveLabelPlacement('INSIDE_TOP_CENTER', 100, 60);
+    expect(p.x).toBe(50);
+    expect(p.textAnchor).toBe('middle');
+    expect(p.dominantBaseline).toBe('hanging');
+    expect(p.y).toBeGreaterThan(0);
+    expect(p.y).toBeLessThan(20);
+  });
+
+  it('places OUTSIDE_BOTTOM_LEFT below the box, anchored to the left column', () => {
+    const p = resolveLabelPlacement('OUTSIDE_BOTTOM_LEFT', 100, 60);
+    expect(p.x).toBe(0);
+    expect(p.textAnchor).toBe('start');
+    expect(p.dominantBaseline).toBe('hanging');
+    expect(p.y).toBeGreaterThan(60);
+  });
+
+  it('places OUTSIDE_MIDDLE_RIGHT to the right of the shape', () => {
+    const p = resolveLabelPlacement('OUTSIDE_MIDDLE_RIGHT', 100, 60);
+    expect(p.x).toBeGreaterThan(100);
+    expect(p.y).toBe(30);
+    expect(p.textAnchor).toBe('start');
+    expect(p.dominantBaseline).toBe('central');
+  });
+
+  it('falls back to centered for UNSET_LABEL_POSITION', () => {
+    expect(resolveLabelPlacement('UNSET_LABEL_POSITION', 80, 40)).toEqual({
+      x: 40,
+      y: 20,
+      textAnchor: 'middle',
+      dominantBaseline: 'central',
+    });
   });
 });

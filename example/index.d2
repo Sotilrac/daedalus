@@ -1,75 +1,72 @@
 ...@nodes
 
-# Static assets bypass the API entirely; dynamic traffic enters the LB.
-user -> edge.cdn: static {
-  style: {
-    stroke: "#fec601"
-  }
-}
+# ────────────────────────────────────────────
+# Founder dynamics inside Pied Piper
+# ────────────────────────────────────────────
+piedpiper.founders.richard -> piedpiper.middleout: wrote it {class: signature}
+piedpiper.founders.jared -> piedpiper.founders.richard: believes in {class: money}
+piedpiper.founders.erlich -> piedpiper.middleout: claims credit {class: quirk; style.stroke-dash: 4}
+piedpiper.founders.erlich -> piedpiper.pipey: designed the mascot {class: quirk}
 
-user -> edge.lb: dynamic {
-  style: {
-    stroke: "#fec601"
-    stroke-width: 2
-  }
-}
+# ────────────────────────────────────────────
+# Engineering -> the algorithm
+# ────────────────────────────────────────────
+piedpiper.eng.gilfoyle -> piedpiper.middleout: optimizes {class: optimize}
+piedpiper.eng.dinesh -> piedpiper.middleout: also optimizes {class: optimize}
+piedpiper.eng.dinesh -> piedpiper.eng.gilfoyle: subtweets {class: hostile; style.stroke-dash: 3}
+piedpiper.eng.bighead -> piedpiper.eng.gilfoyle: rooftop tutoring {class: whim}
 
-# Whole-edge -> API; demonstrates a connection to the outer container.
-edge -> api: forward {
-  style: {
-    stroke: "#7aa6cd"
-    stroke-width: 2
-  }
-}
+# ────────────────────────────────────────────
+# Inner-to-inner: pipeline data flow
+# ────────────────────────────────────────────
+piedpiper.middleout -> pipeline.ingestor: powers {class: signature}
+pipeline.ingestor -> pipeline.weissman: score it {class: data}
+pipeline.weissman -> pipeline.tiptotip: optimize {class: data}
+pipeline.tiptotip -> pipeline.output: emit blob {class: data}
+pipeline.output -> pipeline.cache: warm cache {class: cache}
+pipeline.cache -> pipeline.blobstore: spill to disk {class: cache; style.stroke-dash: 4}
+pipeline.output -> pipeline.blobstore: persist {class: data; style.stroke-width: 1}
 
-api -> cache: lookup {
-  style: {
-    stroke: "#f4f1de"
-  }
-}
+# ────────────────────────────────────────────
+# Outer-container connections (whole-thing -> whole-thing)
+# ────────────────────────────────────────────
+piedpiper -> pipeline: ships {class: ship}
+pipeline -> newinternet: distributes via {class: ship}
+piedpiper.founders.richard -> newinternet: dreams of {class: ship; style.stroke-dash: 4; style.stroke-width: 1}
 
-api -> db: query {
-  style: {
-    stroke: "#7aa6cd"
-    stroke-width: 2
-  }
-}
+# ────────────────────────────────────────────
+# Decentralized fan-out (inner -> peers in another container)
+# ────────────────────────────────────────────
+pipeline.blobstore -> newinternet.phone: shard {class: shard}
+pipeline.blobstore -> newinternet.fridge: shard {class: shard}
+pipeline.blobstore -> newinternet.condorcam: shard {class: shard; style.stroke-dash: 3}
 
-cache -> db: cache miss {
-  style: {
-    stroke: "#f4f1de"
-    stroke-dash: 4
-  }
-}
+# ────────────────────────────────────────────
+# Hooli vs Pied Piper
+# ────────────────────────────────────────────
+hooli.gavin -> piedpiper: sues {class: lawsuit}
+hooli.gavin -> hooli.nucleus: demands wins {class: hostile}
+hooli.nucleus -> piedpiper.middleout: tries to clone {class: theft}
+hooli.nucleus -> hooli.hoolicloud: uploads telemetry {class: data; style.stroke-width: 1}
+hooli.endframe -> piedpiper.middleout: literally stole the code {class: theft; style.stroke-width: 2; style.stroke-dash: 5}
+hooli.gavin -> hooli.hoolixyz: incubates {class: hostile}
+hooli.hoolixyz -> piedpiper.eng.bighead: poaches {class: theft}
 
-api -> queue: enqueue {
-  style: {
-    stroke: "#a3d9b1"
-  }
-}
+# ────────────────────────────────────────────
+# Money flows
+# ────────────────────────────────────────────
+money.russ -> piedpiper: tres commas {class: investment}
+money.raviga -> piedpiper: Series B {class: investment}
+money.laurie -> money.raviga: managing partner {class: money}
+money.monica -> money.raviga: junior partner {class: money}
+money.monica -> piedpiper.founders.richard: secretly rooting for {class: hedge}
+money.raviga -> hooli: also invests {class: hedge}
 
-queue -> worker: dispatch {
-  style: {
-    stroke: "#a3d9b1"
-    stroke-width: 2
-  }
-}
-
-worker -> db: write {
-  style: {
-    stroke: "#a3d9b1"
-  }
-}
-
-worker -> cache: invalidate {
-  style: {
-    stroke: "#ef8b6f"
-    stroke-dash: 3
-  }
-}
-
-edge.lb -> queue: balance {
-  style: {
-    stroke: "#a3d9b1"
-  }
-}
+# ────────────────────────────────────────────
+# Whimsical extras
+# ────────────────────────────────────────────
+piedpiper.founders.erlich -> aviato: previously exited {class: whim}
+piedpiper.eng.bighead -> nothotdog: co-founded? {class: whim; style.stroke-dash: 3}
+nothotdog -> seefood: powers {class: shard}
+seefood -> hooli.hoolixyz: pivot acquisition {class: hedge; style.stroke-dash: 4}
+newinternet.condorcam -> hooli.gavin: live feed of his pet {class: quirk; style.stroke-dash: 3}

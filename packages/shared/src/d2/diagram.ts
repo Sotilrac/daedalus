@@ -52,6 +52,10 @@ interface D2FlatNode {
   fontFamily?: string;
   fontSize?: number;
   fontColor?: string;
+  // d2target.Shape.labelPosition — string enum like "INSIDE_TOP_CENTER",
+  // "OUTSIDE_BOTTOM_LEFT", etc. May be missing on older d2 versions or when
+  // the user didn't set `near`.
+  labelPosition?: string;
 }
 
 interface D2FlatConnection {
@@ -98,13 +102,17 @@ function edgeStyle(c: D2FlatConnection): EdgeStyle {
 }
 
 function shapeToNode(s: D2FlatNode): ModelNode {
-  return {
+  const out: ModelNode = {
     label: s.label ?? s.id,
     shape: asShapeKind(s.type),
     style: nodeStyle(s),
     rawWidth: s.width ?? 144,
     rawHeight: s.height ?? 64,
   };
+  if (s.labelPosition && s.labelPosition !== 'UNSET_LABEL_POSITION') {
+    out.labelPosition = s.labelPosition;
+  }
+  return out;
 }
 
 function connectionToEdge(c: D2FlatConnection): ModelEdge {

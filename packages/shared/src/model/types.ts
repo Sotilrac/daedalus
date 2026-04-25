@@ -37,12 +37,18 @@ export interface EdgeStyle {
   opacity?: number;
 }
 
+// D2's `labelPosition` strings: `<INSIDE|BORDER|OUTSIDE>_<TOP|MIDDLE|BOTTOM>_<LEFT|CENTER|RIGHT>`,
+// or `UNSET_LABEL_POSITION`. We keep the raw string so the resolver can map
+// every variant without needing the upstream enum.
+export type LabelPosition = string;
+
 export interface ModelNode {
   label: string;
   shape: ShapeKind;
   style: NodeStyle;
   rawWidth: number;
   rawHeight: number;
+  labelPosition?: LabelPosition;
 }
 
 export interface ModelEdge {

@@ -91,10 +91,10 @@ export function NodeView({ node }: { node: RenderNode }): JSX.Element {
     >
       {renderShape(node)}
       <text
-        x={node.w / 2}
-        y={node.h / 2}
-        textAnchor="middle"
-        dominantBaseline="central"
+        x={node.labelPlacement.x}
+        y={node.labelPlacement.y}
+        textAnchor={node.labelPlacement.textAnchor}
+        dominantBaseline={node.labelPlacement.dominantBaseline}
         fill={node.style.fontColor}
         fontWeight={node.style.fontWeight}
         fontStyle={node.style.fontStyle}
