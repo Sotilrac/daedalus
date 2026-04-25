@@ -1,6 +1,14 @@
 import { useGraphStore } from '../store/graphStore.js';
 
-export function SettingsPanel(): JSX.Element | null {
+export interface SettingsPanelProps {
+  autoReload: boolean;
+  onAutoReloadChange: (v: boolean) => void;
+}
+
+export function SettingsPanel({
+  autoReload,
+  onAutoReloadChange,
+}: SettingsPanelProps): JSX.Element | null {
   const layout = useGraphStore((s) => s.layout);
   const updateSettings = useGraphStore((s) => s.updateSettings);
   if (!layout) return null;
@@ -8,6 +16,20 @@ export function SettingsPanel(): JSX.Element | null {
 
   return (
     <div className="settings-panel" role="dialog" aria-label="Settings">
+      <section>
+        <h3>Source</h3>
+        <label
+          className="row checkbox"
+          title="Reload the graph automatically when D2 files change."
+        >
+          <input
+            type="checkbox"
+            checked={autoReload}
+            onChange={(e) => onAutoReloadChange(e.target.checked)}
+          />
+          <span>Auto-reload on D2 change</span>
+        </label>
+      </section>
       <section>
         <h3>Routing</h3>
         <NumberRow

@@ -8,12 +8,14 @@ use tauri::{AppHandle, Emitter, State};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_fs::FsExt;
 
+const FOLDER_CHANGED_EVENT: &str = "daedalus-folder-changed";
+
 #[derive(Default)]
 struct WatcherState {
     watchers: Mutex<HashMap<PathBuf, RecommendedWatcher>>,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, Debug)]
 struct FolderChange {
     path: String,
     kind: String,
@@ -47,33 +49,41 @@ fn watch_folder(app: AppHandle, state: State<'_, WatcherState>, path: String) ->
 
     let mut watchers = state.watchers.lock().map_err(|e| e.to_string())?;
     if watchers.contains_key(&folder) {
+        eprintln!("[daedalus] watch_folder: already watching {}", folder.display());
         return Ok(());
     }
 
     let app_for_event = app.clone();
     let mut watcher = recommended_watcher(move |res: Result<Event, notify::Error>| {
-        if let Ok(event) = res {
-            let kind = match event.kind {
-                EventKind::Create(_) => "created",
-                EventKind::Modify(_) => "modified",
-                EventKind::Remove(_) => "removed",
-                _ => return,
-            };
-            // Only forward D2 source changes. The sidecar is ours, and round-tripping
-            // its writes back through the watcher would loop with the editor's
-            // debounced persist.
-            let payload: Vec<FolderChange> = event
-                .paths
-                .into_iter()
-                .filter(|p| p.extension().map(|ext| ext == "d2").unwrap_or(false))
-                .map(|p| FolderChange {
-                    path: p.to_string_lossy().to_string(),
-                    kind: kind.to_string(),
-                })
-                .collect();
-            if !payload.is_empty() {
-                let _ = app_for_event.emit("daedalus://folder-changed", payload);
+        match res {
+            Ok(event) => {
+                eprintln!("[daedalus] notify event {:?} paths={:?}", event.kind, event.paths);
+                let kind = match event.kind {
+                    EventKind::Create(_) => "created",
+                    EventKind::Modify(_) => "modified",
+                    EventKind::Remove(_) => "removed",
+                    _ => return,
+                };
+                // Only forward D2 source changes. The sidecar is ours, and round-tripping
+                // its writes back through the watcher would loop with the editor's
+                // debounced persist.
+                let payload: Vec<FolderChange> = event
+                    .paths
+                    .into_iter()
+                    .filter(|p| p.extension().map(|ext| ext == "d2").unwrap_or(false))
+                    .map(|p| FolderChange {
+                        path: p.to_string_lossy().to_string(),
+                        kind: kind.to_string(),
+                    })
+                    .collect();
+                if !payload.is_empty() {
+                    eprintln!("[daedalus] emit {} {:?}", FOLDER_CHANGED_EVENT, payload);
+                    if let Err(e) = app_for_event.emit(FOLDER_CHANGED_EVENT, payload) {
+                        eprintln!("[daedalus] emit failed: {e}");
+                    }
+                }
             }
+            Err(e) => eprintln!("[daedalus] notify error: {e}"),
         }
     })
     .map_err(|e| e.to_string())?;
@@ -81,6 +91,7 @@ fn watch_folder(app: AppHandle, state: State<'_, WatcherState>, path: String) ->
     watcher
         .watch(&folder, RecursiveMode::Recursive)
         .map_err(|e| e.to_string())?;
+    eprintln!("[daedalus] watch_folder: armed {}", folder.display());
     watchers.insert(folder, watcher);
     Ok(())
 }
@@ -89,7 +100,9 @@ fn watch_folder(app: AppHandle, state: State<'_, WatcherState>, path: String) ->
 fn unwatch_folder(state: State<'_, WatcherState>, path: String) -> Result<(), String> {
     let folder = PathBuf::from(&path);
     let mut watchers = state.watchers.lock().map_err(|e| e.to_string())?;
-    watchers.remove(&folder);
+    if watchers.remove(&folder).is_some() {
+        eprintln!("[daedalus] unwatch_folder: dropped {}", folder.display());
+    }
     Ok(())
 }
 

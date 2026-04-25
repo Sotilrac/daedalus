@@ -34,30 +34,44 @@ export function App(): JSX.Element {
   const setTheme = useGraphStore((s) => s.setTheme);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [autoReload, setAutoReload] = useState<boolean>(recallAutoReload);
 
   const svgRef = useRef<SVGSVGElement | null>(null);
   const hostRef = useRef<HTMLElement | null>(null);
   // The most recent layout we wrote; used to skip the next persist if state
   // came back unchanged (e.g. just after a sidecar read).
   const lastPersistedRef = useRef<unknown>(null);
+  // Read by the watcher callback so toggling auto-reload doesn't rip the
+  // subscription down and back up.
+  const autoReloadRef = useRef(autoReload);
+  autoReloadRef.current = autoReload;
+  // Generation counter for in-flight loads; an older load that completes
+  // after a newer one started is dropped on the floor.
+  const loadGenRef = useRef(0);
+  // Forward ref to onCenter; used by reload before onCenter is defined.
+  const onCenterRef = useRef<() => void>(() => undefined);
 
-  // Load D2 files + sidecar, recompile, reconcile. Reads the latest model from
-  // the store at call time so we don't keep regenerating the callback. The
-  // first load for a given source auto-centres so the user immediately sees
-  // the diagram in view; later loads (folder watcher events) leave the user's
-  // pan untouched.
   useEffect(() => {
-    if (!source) return undefined;
-    let cancelled = false;
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(AUTO_RELOAD_KEY, String(autoReload));
+    }
+  }, [autoReload]);
 
-    const load = async (recenter: boolean) => {
+  // Load D2 files + sidecar, recompile, reconcile. Reads the latest model
+  // from the store at call time. Returned promise resolves once the load
+  // settles; callers interested in cancellation use the generation counter.
+  const reload = useCallback(
+    async (opts: { recenter: boolean }) => {
+      if (!source) return;
+      const gen = ++loadGenRef.current;
+      const live = (): boolean => gen === loadGenRef.current;
       setLoading(true);
       try {
         const files = await readAllD2(source);
-        if (cancelled) return;
+        if (!live()) return;
         setFiles(files);
         const sidecarText = await source.readSidecar();
-        if (cancelled) return;
+        if (!live()) return;
         const sidecar = sidecarText ? parseSidecar(sidecarText) : emptySidecar();
         const prevLayout = getEntry(sidecar, entryPath) ?? null;
         const prevModel = useGraphStore.getState().model;
@@ -67,31 +81,39 @@ export function App(): JSX.Element {
           prevModel,
           prevLayout,
         });
-        if (cancelled) return;
+        if (!live()) return;
         setErrors([]);
         lastPersistedRef.current = useGraphStore.getState().layout;
-        if (recenter) {
+        if (opts.recenter) {
           requestAnimationFrame(() => {
-            if (!cancelled) onCenterRef.current();
+            if (live()) onCenterRef.current();
           });
         }
       } catch (err) {
-        if (!cancelled) setErrors(normalizeD2Error(err));
+        if (live()) setErrors(normalizeD2Error(err));
       } finally {
-        if (!cancelled) setLoading(false);
+        if (live()) setLoading(false);
       }
-    };
+    },
+    [source, entryPath, setFiles, setErrors, setLoading],
+  );
 
-    void load(true);
+  // Initial load + watcher subscription. The first load for a given source
+  // auto-centres; watcher-triggered reloads leave the user's pan untouched.
+  useEffect(() => {
+    if (!source) return undefined;
+    void reload({ recenter: true });
     const off = source.subscribe((changes) => {
+      if (!autoReloadRef.current) return;
       if (changes.length === 0) return;
-      void load(false);
+      void reload({ recenter: false });
     });
     return () => {
-      cancelled = true;
+      // Cancel any in-flight load so it can't race a subsequent source.
+      loadGenRef.current += 1;
       off();
     };
-  }, [source, entryPath, setFiles, setErrors, setLoading]);
+  }, [source, reload]);
 
   // Debounced sidecar persist whenever the user changes layout in the editor.
   useEffect(() => {
@@ -185,10 +207,8 @@ export function App(): JSX.Element {
     host.scrollTo({ left: 0, top: 0 });
   }, []);
 
-  // Stable handle to the latest onCenter so the load effect can call it
-  // without listing it as a dep (which would be stable anyway, but this keeps
-  // intent explicit).
-  const onCenterRef = useRef(onCenter);
+  // Keep the forward ref pointing at the latest onCenter so reload() (which
+  // closes over the ref, declared earlier) always invokes the live closure.
   onCenterRef.current = onCenter;
 
   const onExportPng = useCallback(async () => {
@@ -216,6 +236,11 @@ export function App(): JSX.Element {
         <span className="spacer" />
         {needsRelayout && <span style={{ color: 'var(--accent)' }}>Layout out of sync</span>}
         <button onClick={() => void onPickFolder()}>Open folder</button>
+        {!autoReload && (
+          <button onClick={() => void reload({ recenter: false })} disabled={!source}>
+            Reload D2
+          </button>
+        )}
         <button
           onClick={() => {
             if (!source) return;
@@ -267,7 +292,9 @@ export function App(): JSX.Element {
           >
             Settings
           </button>
-          {settingsOpen && <SettingsPanel />}
+          {settingsOpen && (
+            <SettingsPanel autoReload={autoReload} onAutoReloadChange={setAutoReload} />
+          )}
         </span>
       </header>
       <main className="canvas-host" ref={hostRef}>
@@ -349,6 +376,13 @@ function dirOf(path: string): string {
 
 const EXPORT_DIR_KEY = 'daedalus.lastExportDir';
 const LAST_FOLDER_KEY = 'daedalus.lastFolder';
+const AUTO_RELOAD_KEY = 'daedalus.autoReload';
+
+function recallAutoReload(): boolean {
+  if (typeof localStorage === 'undefined') return true;
+  const v = localStorage.getItem(AUTO_RELOAD_KEY);
+  return v === null ? true : v === 'true';
+}
 
 function rememberFolder(path: string): void {
   if (typeof localStorage === 'undefined') return;

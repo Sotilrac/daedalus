@@ -16,14 +16,26 @@ export interface SourceState {
   setLoading(loading: boolean): void;
 }
 
-export const useSourceStore = create<SourceState>((set) => ({
+export const useSourceStore = create<SourceState>((set, get) => ({
   source: null,
   rootPath: null,
   entryPath: 'index.d2',
   cachedFiles: {},
   errors: [],
   isLoading: false,
-  setSource: (source) => set({ source, rootPath: source?.rootPath ?? null }),
+  setSource: (source) => {
+    const prev = get().source;
+    if (prev === source) return;
+    // Two source instances pointing at the same path share the same Rust
+    // watcher. Disposing the old one would tear down the watcher the new
+    // instance is relying on. This matters under React StrictMode, where the
+    // auto-restore effect double-mounts and produces two sources for the
+    // saved path within the same render cycle.
+    if (prev && prev.rootPath !== source?.rootPath) {
+      void prev.dispose?.();
+    }
+    set({ source, rootPath: source?.rootPath ?? null });
+  },
   setEntry: (entryPath) => set({ entryPath }),
   setFiles: (cachedFiles) => set({ cachedFiles }),
   setErrors: (errors) => set({ errors }),

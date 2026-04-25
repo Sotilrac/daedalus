@@ -4,6 +4,8 @@ import { invoke } from '@tauri-apps/api/core';
 import type { DataSource, FolderChange } from '@daedalus/shared';
 import { SIDECAR_FILENAME } from '@daedalus/shared/sidecar';
 
+const FOLDER_CHANGED_EVENT = 'daedalus-folder-changed';
+
 export async function pickFolderViaTauri(): Promise<string | null> {
   const result = await invoke<string | null>('pick_folder');
   return result ?? null;
@@ -18,7 +20,13 @@ export class TauriFolderSource implements DataSource {
   private readonly ready: Promise<unknown>;
 
   constructor(public readonly rootPath: string) {
-    this.ready = invoke('watch_folder', { path: rootPath }).catch(() => undefined);
+    this.ready = invoke('watch_folder', { path: rootPath })
+      .then(() => {
+        console.info('[daedalus] watcher armed for', rootPath);
+      })
+      .catch((err) => {
+        console.error('[daedalus] watch_folder failed', err);
+      });
   }
 
   async listD2Files(): Promise<string[]> {
@@ -43,24 +51,37 @@ export class TauriFolderSource implements DataSource {
     await writeTextFile(joinPath(this.rootPath, SIDECAR_FILENAME), text);
   }
 
+  // Subscriptions are listener-scoped: unsubscribing only removes this
+  // frontend listener, not the underlying watcher. Otherwise React StrictMode's
+  // double-mount tears the watcher down between effect runs and the second
+  // mount silently listens to a watcher that no longer exists. The Rust
+  // watcher lives until `dispose()` is called.
   subscribe(listener: (changes: FolderChange[]) => void): () => void {
     let active = true;
     let unlisten: UnlistenFn | null = null;
     void this.ready
       .then(() =>
-        listen<FolderChange[]>('daedalus://folder-changed', (event) => {
+        listen<FolderChange[]>(FOLDER_CHANGED_EVENT, (event) => {
+          console.info('[daedalus] folder-changed received', event.payload);
           if (active) listener(event.payload);
         }),
       )
       .then((u) => {
+        console.info('[daedalus] folder-changed listener attached');
         if (active) unlisten = u;
         else u();
+      })
+      .catch((err) => {
+        console.error('[daedalus] failed to attach folder-changed listener', err);
       });
     return () => {
       active = false;
       if (unlisten) unlisten();
-      void invoke('unwatch_folder', { path: this.rootPath }).catch(() => undefined);
     };
+  }
+
+  async dispose(): Promise<void> {
+    await invoke('unwatch_folder', { path: this.rootPath }).catch(() => undefined);
   }
 }
 
