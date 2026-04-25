@@ -1,8 +1,23 @@
 ...@nodes
 
-user -> api: request {
+# Static assets bypass the API entirely; dynamic traffic enters the LB.
+user -> edge.cdn: static {
   style: {
     stroke: "#fec601"
+  }
+}
+
+user -> edge.lb: dynamic {
+  style: {
+    stroke: "#fec601"
+    stroke-width: 2
+  }
+}
+
+# Whole-edge -> API; demonstrates a connection to the outer container.
+edge -> api: forward {
+  style: {
+    stroke: "#7aa6cd"
     stroke-width: 2
   }
 }

@@ -1,4 +1,5 @@
 import type { EdgeRoutes, Layout, Model, Point, ShapeKind } from '../model/types.js';
+import { isContainer } from '../model/ids.js';
 import { gridPattern } from './grid.js';
 import {
   resolveEdgeStyle,
@@ -30,6 +31,10 @@ export interface RenderNode {
   h: number;
   label: string;
   style: ReturnType<typeof resolveNodeStyle>;
+  // True when at least one other node id is a deep-ref child of this one.
+  // Container nodes render behind edges so the connections that target them
+  // (or pass over them) stay visible.
+  isContainer: boolean;
 }
 
 export interface RenderEdge {
@@ -52,6 +57,7 @@ export function buildRenderPlan({ model, layout, routes, theme }: BuildPlanInput
   const themeName: ThemeName = theme ?? layout.viewport.theme;
   const palette = themes[themeName];
 
+  const nodeIds = Object.keys(model.nodes);
   const nodes: RenderNode[] = Object.entries(model.nodes).map(([id, n]) => {
     const l = layout.nodes[id];
     const x = l?.x ?? 0;
@@ -67,6 +73,7 @@ export function buildRenderPlan({ model, layout, routes, theme }: BuildPlanInput
       h,
       label: n.label,
       style: resolveNodeStyle(palette, n.style),
+      isContainer: isContainer(nodeIds, id),
     };
   });
 

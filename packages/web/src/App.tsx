@@ -287,7 +287,7 @@ function exportOpts(svg: SVGSVGElement, layout: Layout): ExportOptions {
   const margin = layout.settings.export.margin;
   const showGrid = layout.settings.export.showGrid;
 
-  const groups = ['.nodes', '.edges']
+  const groups = ['.containers', '.nodes', '.edges']
     .map((sel) => svg.querySelector<SVGGElement>(sel))
     .filter((g): g is SVGGElement => g !== null);
 

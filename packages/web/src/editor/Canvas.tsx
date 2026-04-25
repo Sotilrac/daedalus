@@ -1,4 +1,12 @@
-import { forwardRef, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import {
+  forwardRef,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from 'react';
 import { useGraphStore } from '../store/graphStore.js';
 import { NodeView } from './NodeView.js';
 import { EdgeView } from './EdgeView.js';
@@ -67,11 +75,9 @@ export const Canvas = forwardRef<SVGSVGElement, CanvasProps>(function Canvas(
     return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
   }, [layout, routes]);
 
-  if (!plan || !layout) return null;
-
-  // Outline lives outside the translate group and is positioned algebraically
-  // (natural bbox shifted by the current viewOffset). No layout-effect round
-  // trip, no drift.
+  // Compute everything that depends only on naturalBBox + viewOffset BEFORE
+  // any conditional return, so the hooks below run unconditionally.
+  const margin = layout?.settings.export.margin ?? 0;
   const bbox: BBox | null = naturalBBox
     ? {
         x: naturalBBox.x + viewOffset.x,
@@ -81,17 +87,41 @@ export const Canvas = forwardRef<SVGSVGElement, CanvasProps>(function Canvas(
       }
     : null;
 
-  const margin = layout.settings.export.margin;
-  const exportW = bbox ? Math.round(bbox.w + 2 * margin) : 0;
-  const exportH = bbox ? Math.round(bbox.h + 2 * margin) : 0;
-
-  // Allow space for the size label outside the bottom-right corner of the
-  // outline. The label renders at the outline's right edge, baseline 14 px
-  // below the outline; pad an extra ~24 px so it isn't clipped.
+  const outlineLeft = bbox ? bbox.x - margin : 0;
+  const outlineTop = bbox ? bbox.y - margin : 0;
   const outlineRight = bbox ? bbox.x + bbox.w + margin : 0;
   const outlineBottom = bbox ? bbox.y + bbox.h + margin : 0;
-  const w = Math.max(host.w, outlineRight + 24);
-  const h = Math.max(host.h, outlineBottom + 24);
+
+  // The canvas grows in *both* directions so users can drag nodes into
+  // negative space (essentially infinite canvas) without hitting a wall.
+  const svgMinX = Math.min(0, outlineLeft - 24);
+  const svgMinY = Math.min(0, outlineTop - 24);
+  const svgMaxX = Math.max(host.w, outlineRight + 96);
+  const svgMaxY = Math.max(host.h, outlineBottom + 32);
+  const w = svgMaxX - svgMinX;
+  const h = svgMaxY - svgMinY;
+
+  // Keep the user's scroll position stable when the viewBox origin shifts —
+  // otherwise expanding the canvas leftward/upward makes existing content
+  // appear to jump. Hook must come before any early return.
+  const prevOriginRef = useRef<{ x: number; y: number } | null>(null);
+  useLayoutEffect(() => {
+    const el = hostRef.current;
+    if (!el) return;
+    const prev = prevOriginRef.current;
+    if (prev) {
+      const dx = svgMinX - prev.x;
+      const dy = svgMinY - prev.y;
+      if (dx !== 0) el.scrollLeft -= dx;
+      if (dy !== 0) el.scrollTop -= dy;
+    }
+    prevOriginRef.current = { x: svgMinX, y: svgMinY };
+  }, [svgMinX, svgMinY, hostRef]);
+
+  if (!plan || !layout) return null;
+
+  const exportW = bbox ? Math.round(bbox.w + 2 * margin) : 0;
+  const exportH = bbox ? Math.round(bbox.h + 2 * margin) : 0;
 
   return (
     <div className="canvas-fill">
@@ -103,7 +133,7 @@ export const Canvas = forwardRef<SVGSVGElement, CanvasProps>(function Canvas(
         }}
         width={w}
         height={h}
-        viewBox={`0 0 ${w} ${h}`}
+        viewBox={`${svgMinX} ${svgMinY} ${w} ${h}`}
         role="img"
         aria-label="Diagram"
         data-theme={layout.viewport.theme}
@@ -112,17 +142,36 @@ export const Canvas = forwardRef<SVGSVGElement, CanvasProps>(function Canvas(
         <defs>
           <GridDefs grid={plan.grid} />
         </defs>
-        <rect className="grid-bg" width={w} height={h} fill={`url(#${plan.grid.id})`} />
+        <rect
+          className="grid-bg"
+          x={svgMinX}
+          y={svgMinY}
+          width={w}
+          height={h}
+          fill={`url(#${plan.grid.id})`}
+        />
         <g transform={`translate(${viewOffset.x} ${viewOffset.y})`}>
+          {/* Containers render first so edges and inner nodes paint on top of
+              them. Edges sit above containers but below leaf nodes, so a
+              connection that targets a container is still readable. */}
+          <g className="containers">
+            {plan.nodes
+              .filter((n) => n.isContainer)
+              .map((n) => (
+                <NodeView key={n.id} node={n} />
+              ))}
+          </g>
           <g className="edges">
             {plan.edges.map((e) => (
               <EdgeView key={e.id} edge={e} />
             ))}
           </g>
           <g className="nodes">
-            {plan.nodes.map((n) => (
-              <NodeView key={n.id} node={n} />
-            ))}
+            {plan.nodes
+              .filter((n) => !n.isContainer)
+              .map((n) => (
+                <NodeView key={n.id} node={n} />
+              ))}
           </g>
         </g>
         {bbox && (

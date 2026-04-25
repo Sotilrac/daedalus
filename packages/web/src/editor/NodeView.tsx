@@ -17,6 +17,8 @@ export function NodeView({ node }: { node: RenderNode }): JSX.Element {
   const [resize, setResize] = useState<{
     origW: number;
     origH: number;
+    origCx: number;
+    origCy: number;
     pointerX: number;
     pointerY: number;
   } | null>(null);
@@ -94,6 +96,8 @@ export function NodeView({ node }: { node: RenderNode }): JSX.Element {
               setResize({
                 origW: node.w,
                 origH: node.h,
+                origCx: node.x + node.w / 2,
+                origCy: node.y + node.h / 2,
                 pointerX: e.clientX,
                 pointerY: e.clientY,
               });
@@ -103,11 +107,12 @@ export function NodeView({ node }: { node: RenderNode }): JSX.Element {
               const dx = e.clientX - resize.pointerX;
               const dy = e.clientY - resize.pointerY;
               // Centre-anchored resize: both sides expand symmetrically, so
-              // a dx of N grows the width by 2N. The store snaps to grid and
-              // recomputes the position to keep the centre fixed.
+              // dragging the corner by N pixels widens the node by 2N. We
+              // pass the *original* centre as the anchor so consecutive ticks
+              // can't drift via grid rounding.
               const w = resize.origW + 2 * dx;
               const h = resize.origH + 2 * dy;
-              void resizeNode(node.id, w, h);
+              void resizeNode(node.id, w, h, { x: resize.origCx, y: resize.origCy });
             }}
             onPointerUp={(e) => {
               e.currentTarget.releasePointerCapture(e.pointerId);

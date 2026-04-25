@@ -5,9 +5,11 @@ import {
   applySavedLayout,
   buildLayoutFromRaw,
   buildRenderPlan,
+  descendantIds,
   diagramToModel,
   diagramToRawLayout,
   edgeId,
+  parentId,
   reconcileLayout,
   routeEdges,
   type EdgeId,
@@ -19,7 +21,7 @@ import {
   type RenderPlan,
 } from '@daedalus/shared';
 import { compileD2 } from '@daedalus/shared/d2';
-import { snap, clampToGrid } from '@daedalus/shared/layout';
+import { snap } from '@daedalus/shared/layout';
 import { swapAt } from '@daedalus/shared/routing';
 
 export interface GraphState {
@@ -39,7 +41,7 @@ export interface GraphState {
   }): Promise<void>;
   relayout(): Promise<void>;
   moveNode(id: NodeId, x: number, y: number): Promise<void>;
-  resizeNode(id: NodeId, w: number, h: number): Promise<void>;
+  resizeNode(id: NodeId, w: number, h: number, anchor?: { x: number; y: number }): Promise<void>;
   selectNode(id: NodeId | null): void;
   swapAnchor(node: NodeId, side: Side, edgeId: EdgeId, offset: number): Promise<void>;
   moveEdgeAnchor(node: NodeId, edgeId: EdgeId, toSide: Side, toIndex: number): Promise<void>;
@@ -108,46 +110,88 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     const node = layout.nodes[id];
     if (!node) return;
 
-    const sx = Math.max(0, snap(x, layout.grid.size));
-    const sy = Math.max(0, snap(y, layout.grid.size));
+    let sx = snap(x, layout.grid.size);
+    let sy = snap(y, layout.grid.size);
 
-    // Grow the grid if the user drags past current bounds; clamp keeps a
-    // strict upper bound only when the new position fits.
-    const margin = layout.grid.size * 4;
-    const minCols = Math.ceil((sx + node.w + margin) / layout.grid.size);
-    const minRows = Math.ceil((sy + node.h + margin) / layout.grid.size);
-    const grid = {
-      size: layout.grid.size,
-      cols: Math.max(layout.grid.cols, minCols),
-      rows: Math.max(layout.grid.rows, minRows),
-    };
-    const clamped = clampToGrid(sx, sy, node.w, node.h, grid);
+    // If this node lives inside a container, the move is bounded to the
+    // parent's rectangle: the child can't escape its enclosing block.
+    const par = parentId(id);
+    const parentNode = par ? layout.nodes[par] : null;
+    if (parentNode) {
+      sx = Math.max(parentNode.x, Math.min(parentNode.x + parentNode.w - node.w, sx));
+      sy = Math.max(parentNode.y, Math.min(parentNode.y + parentNode.h - node.h, sy));
+    }
 
-    const nextLayout: Layout = {
-      ...layout,
-      grid,
-      nodes: { ...layout.nodes, [id]: { ...node, x: clamped.x, y: clamped.y } },
-    };
+    // No global clamping — the canvas is essentially infinite. Negative
+    // coordinates are allowed; the editor renders a viewBox that grows in
+    // both directions and the host scroll compensates so existing content
+    // doesn't appear to jump.
+    const dx = sx - node.x;
+    const dy = sy - node.y;
+    const nextNodes = { ...layout.nodes, [id]: { ...node, x: sx, y: sy } };
+    if (dx !== 0 || dy !== 0) {
+      for (const childId of descendantIds(Object.keys(layout.nodes), id)) {
+        const child = layout.nodes[childId];
+        if (!child) continue;
+        nextNodes[childId] = { ...child, x: child.x + dx, y: child.y + dy };
+      }
+    }
+
+    const nextLayout: Layout = { ...layout, nodes: nextNodes };
     const routes = await routeEdges(model, nextLayout);
     const plan = buildRenderPlan({ model, layout: nextLayout, routes });
     set({ layout: nextLayout, routes, plan });
   },
 
-  async resizeNode(id, w, h) {
+  async resizeNode(id, w, h, anchor) {
     const { model, layout } = get();
     if (!model || !layout) return;
     const node = layout.nodes[id];
     if (!node) return;
+
     const grid = layout.grid.size;
-    // Snap to grid; minimum one cell. Resize is centre-anchored so the node
-    // grows or shrinks symmetrically and stays where the user expects.
-    const sw = Math.max(grid, Math.round(w / grid) * grid);
-    const sh = Math.max(grid, Math.round(h / grid) * grid);
-    if (sw === node.w && sh === node.h) return;
-    const cx = node.x + node.w / 2;
-    const cy = node.y + node.h / 2;
-    const nx = Math.max(0, Math.round((cx - sw / 2) / grid) * grid);
-    const ny = Math.max(0, Math.round((cy - sh / 2) / grid) * grid);
+    // Even (2× grid) increments mean half-size is always a whole cell, so the
+    // anchor stays exactly on a grid line whether growing or shrinking.
+    const step = grid * 2;
+    const cx = anchor?.x ?? node.x + node.w / 2;
+    const cy = anchor?.y ?? node.y + node.h / 2;
+
+    // Lower bound for containers: must enclose every descendant relative to
+    // the resize anchor.
+    const ids = Object.keys(layout.nodes);
+    const children = descendantIds(ids, id);
+    let minW = step;
+    let minH = step;
+    for (const childId of children) {
+      const c = layout.nodes[childId];
+      if (!c) continue;
+      const reqW = 2 * Math.max(cx - c.x, c.x + c.w - cx);
+      const reqH = 2 * Math.max(cy - c.y, c.y + c.h - cy);
+      if (reqW > minW) minW = reqW;
+      if (reqH > minH) minH = reqH;
+    }
+    minW = Math.ceil(minW / step) * step;
+    minH = Math.ceil(minH / step) * step;
+
+    // Upper bound: a node inside a container can't exceed the parent's box.
+    const par = parentId(id);
+    const parentNode = par ? layout.nodes[par] : null;
+    let maxW = Infinity;
+    let maxH = Infinity;
+    if (parentNode) {
+      maxW = parentNode.w;
+      maxH = parentNode.h;
+    }
+
+    const sw = Math.max(minW, Math.min(maxW, Math.round(w / step) * step));
+    const sh = Math.max(minH, Math.min(maxH, Math.round(h / step) * step));
+    let nx = Math.round((cx - sw / 2) / grid) * grid;
+    let ny = Math.round((cy - sh / 2) / grid) * grid;
+    if (parentNode) {
+      nx = Math.max(parentNode.x, Math.min(parentNode.x + parentNode.w - sw, nx));
+      ny = Math.max(parentNode.y, Math.min(parentNode.y + parentNode.h - sh, ny));
+    }
+    if (sw === node.w && sh === node.h && nx === node.x && ny === node.y) return;
 
     const nextLayout: Layout = {
       ...layout,

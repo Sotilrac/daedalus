@@ -88,8 +88,11 @@ function edgeStyle(c: D2FlatConnection): EdgeStyle {
   if (c.stroke !== undefined) out.stroke = c.stroke;
   if (typeof c.strokeWidth === 'number') out.strokeWidth = c.strokeWidth;
   if (typeof c.strokeDash === 'number' && c.strokeDash > 0) out.strokeDash = c.strokeDash;
+  // Only pick up an explicit `fontColor`. D2's flat `color` field is filled
+  // in with the engine's default (typically near-black) regardless of theme,
+  // so reusing it would make connection labels unreadable on dark themes.
+  // Falling through to the resolver lets the theme's ink apply instead.
   if (c.fontColor !== undefined) out.fontColor = c.fontColor;
-  if (c.color !== undefined && out.fontColor === undefined) out.fontColor = c.color;
   if (typeof c.opacity === 'number' && c.opacity !== 1) out.opacity = c.opacity;
   return out;
 }
