@@ -37,6 +37,7 @@ export interface RenderEdge {
   path: string; // SVG path "d" attribute
   label?: string;
   midpoint: Point;
+  labelBackground: string; // resolved theme hex for label pill
   style: ReturnType<typeof resolveEdgeStyle>;
 }
 
@@ -72,9 +73,9 @@ export function buildRenderPlan({ model, layout, routes, theme }: BuildPlanInput
   const edges: RenderEdge[] = Object.entries(model.edges).map(([id, e]) => {
     const route = routes[id] ?? [];
     const path = polylineToPath(route);
-    const midpoint = route[Math.floor(route.length / 2)] ?? { x: 0, y: 0 };
+    const midpoint = labelPoint(route);
     const style = resolveEdgeStyle(palette, e.style);
-    const out: RenderEdge = { id, path, midpoint, style };
+    const out: RenderEdge = { id, path, midpoint, labelBackground: palette.paper, style };
     if (e.label) out.label = e.label;
     return out;
   });
@@ -87,6 +88,39 @@ export function buildRenderPlan({ model, layout, routes, theme }: BuildPlanInput
     nodes,
     edges,
   };
+}
+
+// Place the label at the polyline's arc-length midpoint. For straight routes
+// libavoid often emits multiple collinear segments — picking the longest
+// segment lands the label near one end of the run, so we walk the route and
+// stop when we've covered half the total length.
+export function labelPoint(route: readonly Point[]): Point {
+  if (route.length === 0) return { x: 0, y: 0 };
+  if (route.length === 1) return route[0] ?? { x: 0, y: 0 };
+
+  let total = 0;
+  for (let i = 0; i < route.length - 1; i += 1) {
+    const a = route[i];
+    const b = route[i + 1];
+    if (!a || !b) continue;
+    total += Math.hypot(b.x - a.x, b.y - a.y);
+  }
+  if (total === 0) return route[0] ?? { x: 0, y: 0 };
+
+  const half = total / 2;
+  let acc = 0;
+  for (let i = 0; i < route.length - 1; i += 1) {
+    const a = route[i];
+    const b = route[i + 1];
+    if (!a || !b) continue;
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    if (acc + len >= half) {
+      const t = len === 0 ? 0 : (half - acc) / len;
+      return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+    }
+    acc += len;
+  }
+  return route[route.length - 1] ?? { x: 0, y: 0 };
 }
 
 export function polylineToPath(points: readonly Point[]): string {

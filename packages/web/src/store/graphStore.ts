@@ -41,6 +41,12 @@ export interface GraphState {
   swapAnchor(node: NodeId, side: Side, edgeId: EdgeId, offset: number): Promise<void>;
   moveEdgeAnchor(node: NodeId, edgeId: EdgeId, toSide: Side, toIndex: number): Promise<void>;
   setTheme(theme: 'blueprint' | 'paper'): void;
+  updateSettings(patch: SettingsPatch): Promise<void>;
+}
+
+export interface SettingsPatch {
+  routing?: Partial<{ shapeBuffer: number; leadOut: number; nudging: number }>;
+  export?: Partial<{ margin: number; showGrid: boolean }>;
 }
 
 export const useGraphStore = create<GraphState>((set, get) => ({
@@ -194,6 +200,37 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     const nextLayout: Layout = { ...layout, viewport: { ...layout.viewport, theme } };
     const plan = model ? buildRenderPlan({ model, layout: nextLayout, routes }) : null;
     set({ layout: nextLayout, plan });
+  },
+
+  async updateSettings(patch) {
+    const { model, layout } = get();
+    if (!layout) return;
+    const nextLayout: Layout = {
+      ...layout,
+      settings: {
+        routing: { ...layout.settings.routing, ...(patch.routing ?? {}) },
+        export: { ...layout.settings.export, ...(patch.export ?? {}) },
+      },
+    };
+    if (!model) {
+      set({ layout: nextLayout });
+      return;
+    }
+    // Re-route only when routing knobs actually moved; export-only tweaks
+    // don't need a re-route.
+    const routingChanged =
+      patch.routing &&
+      (patch.routing.shapeBuffer !== undefined ||
+        patch.routing.leadOut !== undefined ||
+        patch.routing.nudging !== undefined);
+    if (routingChanged) {
+      const routes = await routeEdges(model, nextLayout);
+      const plan = buildRenderPlan({ model, layout: nextLayout, routes });
+      set({ layout: nextLayout, routes, plan });
+    } else {
+      const plan = buildRenderPlan({ model, layout: nextLayout, routes: get().routes });
+      set({ layout: nextLayout, plan });
+    }
   },
 }));
 

@@ -88,10 +88,41 @@ export interface Viewport {
   theme: 'blueprint' | 'paper';
 }
 
+export interface RoutingSettings {
+  shapeBuffer: number; // px clearance libavoid keeps from each shape
+  leadOut: number; // px the connector leaves perpendicular before bending
+  nudging: number; // ideal distance between parallel segments
+}
+
+export interface ExportSettings {
+  margin: number; // px padding around the diagram bbox
+  showGrid: boolean; // include the dot grid in the exported file
+}
+
+export interface LayoutSettings {
+  routing: RoutingSettings;
+  export: ExportSettings;
+}
+
+export const DEFAULT_SETTINGS: LayoutSettings = {
+  routing: { shapeBuffer: 16, leadOut: 16, nudging: 16 },
+  export: { margin: 16, showGrid: false },
+};
+
+// `structuredClone` isn't in the shared package's TS lib; LayoutSettings is a
+// small fixed shape so a hand-rolled clone is fine.
+export function defaultSettings(): LayoutSettings {
+  return {
+    routing: { ...DEFAULT_SETTINGS.routing },
+    export: { ...DEFAULT_SETTINGS.export },
+  };
+}
+
 export interface Layout {
   version: 1;
   grid: GridConfig;
   viewport: Viewport;
+  settings: LayoutSettings;
   nodes: Record<NodeId, NodeLayout>;
   edges: Record<EdgeId, EdgeLayout>;
   unplaced: NodeId[];

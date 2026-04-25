@@ -39,8 +39,8 @@
           }
         },
         "worker": {
-          "x": 608,
-          "y": 304,
+          "x": 624,
+          "y": 320,
           "w": 192,
           "h": 80,
           "connections": {
@@ -51,7 +51,7 @@
           }
         },
         "cache": {
-          "x": 304,
+          "x": 320,
           "y": 320,
           "w": 96,
           "h": 80,
@@ -121,7 +121,18 @@
           "toSide": "right"
         }
       },
-      "unplaced": []
+      "unplaced": [],
+      "settings": {
+        "routing": {
+          "shapeBuffer": 16,
+          "leadOut": 16,
+          "nudging": 16
+        },
+        "export": {
+          "margin": 10,
+          "showGrid": false
+        }
+      }
     }
   }
 }

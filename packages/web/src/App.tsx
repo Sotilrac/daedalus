@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useGraphStore } from './store/graphStore.js';
 import { useSourceStore } from './store/sourceStore.js';
 import { TauriFolderSource, pickFolderViaTauri } from './sources/tauriFolderSource.js';
 import { readAllD2 } from './sources/loadFolder.js';
 import { Canvas } from './editor/Canvas.js';
 import { ErrorOverlay } from './editor/ErrorOverlay.js';
+import { SettingsPanel } from './editor/SettingsPanel.js';
 import { normalizeD2Error } from '@daedalus/shared/d2';
 import {
   emptySidecar,
@@ -31,6 +32,8 @@ export function App(): JSX.Element {
   const layout = useGraphStore((s) => s.layout);
   const needsRelayout = useGraphStore((s) => s.needsRelayout);
   const setTheme = useGraphStore((s) => s.setTheme);
+
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const svgRef = useRef<SVGSVGElement | null>(null);
   // The most recent layout we wrote; used to skip the next persist if state
@@ -120,7 +123,7 @@ export function App(): JSX.Element {
   }, []);
 
   const onExportSvg = useCallback(async () => {
-    if (!svgRef.current) return;
+    if (!svgRef.current || !layout) return;
     const defaultPath = exportDefaultPath(rootPath, 'svg');
     const dialogOpts: Parameters<typeof saveDialog>[0] = {
       filters: [{ name: 'SVG', extensions: ['svg'] }],
@@ -129,13 +132,13 @@ export function App(): JSX.Element {
     const path = await saveDialog(dialogOpts);
     if (!path) return;
     const finalPath = ensureExtension(path, 'svg');
-    const blob = svgToBlob(svgRef.current);
+    const blob = svgToBlob(svgRef.current, exportOpts(svgRef.current, layout));
     await writeFile(finalPath, new Uint8Array(await blob.arrayBuffer()));
     rememberExportDir(finalPath);
-  }, [rootPath]);
+  }, [rootPath, layout]);
 
   const onExportPng = useCallback(async () => {
-    if (!svgRef.current) return;
+    if (!svgRef.current || !layout) return;
     const defaultPath = exportDefaultPath(rootPath, 'png');
     const dialogOpts: Parameters<typeof saveDialog>[0] = {
       filters: [{ name: 'PNG', extensions: ['png'] }],
@@ -144,10 +147,10 @@ export function App(): JSX.Element {
     const path = await saveDialog(dialogOpts);
     if (!path) return;
     const finalPath = ensureExtension(path, 'png');
-    const blob = await svgToPngBlob(svgRef.current, 2);
+    const blob = await svgToPngBlob(svgRef.current, exportOpts(svgRef.current, layout), 2);
     await writeFile(finalPath, new Uint8Array(await blob.arrayBuffer()));
     rememberExportDir(finalPath);
-  }, [rootPath]);
+  }, [rootPath, layout]);
 
   return (
     <div className="app" data-theme={layout?.viewport.theme ?? 'blueprint'}>
@@ -197,6 +200,16 @@ export function App(): JSX.Element {
         <button onClick={() => void onExportPng()} disabled={!layout}>
           Export PNG
         </button>
+        <span className="toolbar-wrap">
+          <button
+            onClick={() => setSettingsOpen((o) => !o)}
+            disabled={!layout}
+            aria-pressed={settingsOpen}
+          >
+            Settings
+          </button>
+          {settingsOpen && <SettingsPanel />}
+        </span>
       </header>
       <main className="canvas-host">
         {!source && (
@@ -211,6 +224,50 @@ export function App(): JSX.Element {
       </main>
     </div>
   );
+}
+
+import type { Layout } from '@daedalus/shared';
+import type { ExportOptions } from './export/svg.js';
+
+// Compute the export bbox from the live SVG so we capture edge routes (which
+// can extend beyond node boxes when libavoid detours around obstacles) and
+// label pills (whose width depends on the rendered text). `getBBox()` on the
+// `.nodes`/`.edges` groups returns the axis-aligned union of their children.
+function exportOpts(svg: SVGSVGElement, layout: Layout): ExportOptions {
+  const margin = layout.settings.export.margin;
+  const showGrid = layout.settings.export.showGrid;
+
+  const groups = ['.nodes', '.edges']
+    .map((sel) => svg.querySelector<SVGGElement>(sel))
+    .filter((g): g is SVGGElement => g !== null);
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const g of groups) {
+    const b = g.getBBox();
+    if (b.width === 0 && b.height === 0) continue;
+    if (b.x < minX) minX = b.x;
+    if (b.y < minY) minY = b.y;
+    if (b.x + b.width > maxX) maxX = b.x + b.width;
+    if (b.y + b.height > maxY) maxY = b.y + b.height;
+  }
+
+  if (!Number.isFinite(minX)) {
+    return {
+      margin,
+      showGrid,
+      bbox: {
+        x: 0,
+        y: 0,
+        w: layout.grid.cols * layout.grid.size,
+        h: layout.grid.rows * layout.grid.size,
+      },
+    };
+  }
+
+  return { margin, showGrid, bbox: { x: minX, y: minY, w: maxX - minX, h: maxY - minY } };
 }
 
 function folderBasename(path: string | null): string {

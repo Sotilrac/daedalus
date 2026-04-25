@@ -16,6 +16,9 @@ interface AvoidInput {
     box: { x: number; y: number; w: number; h: number };
   }[];
   edges: PinnedEdge[];
+  shapeBuffer: number;
+  leadOut: number;
+  nudging: number;
 }
 
 // Polygon outline (clockwise, absolute coords) for shapes whose visible
@@ -78,19 +81,6 @@ export function setLibavoidWasmUrl(url: string): void {
   routerPromise = null;
 }
 
-// How far to project the endpoint perpendicular to the shape side before
-// handing it to libavoid. Without this lead-out, the endpoint sits exactly on
-// the shape boundary, so libavoid's orthogonal router treats it as an
-// interior point and is willing to route through the host shape.
-const LEAD_OUT = 16;
-
-// libavoid only knows axis-aligned bounding rectangles for shapes. Rendered
-// hexagons / cylinders / parallelograms only fill PART of that rectangle, so a
-// route that hugs the rect corner visually cuts into the polygon. We shrink
-// the visible shape by this much (per side) when registering with libavoid so
-// the buffer keeps routes outside the *visible* outline too.
-const SHAPE_BUFFER = 16;
-
 function leadOut(p: Point, side: Side, d: number): Point {
   switch (side) {
     case 'top':
@@ -138,8 +128,8 @@ async function defaultFactory(): Promise<RouterFactoryResult> {
         stats.params[k] = id;
         router.setRoutingParameter(id, v);
       };
-      setParam('shapeBufferDistance', SHAPE_BUFFER);
-      setParam('idealNudgingDistance', 16);
+      setParam('shapeBufferDistance', input.shapeBuffer);
+      setParam('idealNudgingDistance', input.nudging);
       setParam('segmentPenalty', 50);
       setParam('crossingPenalty', 200);
       setParam('portDirectionPenalty', 100);
@@ -166,8 +156,8 @@ async function defaultFactory(): Promise<RouterFactoryResult> {
       }
 
       const conns = input.edges.map((e) => {
-        const srcLead = leadOut(e.from, e.fromSide, LEAD_OUT);
-        const dstLead = leadOut(e.to, e.toSide, LEAD_OUT);
+        const srcLead = leadOut(e.from, e.fromSide, input.leadOut);
+        const dstLead = leadOut(e.to, e.toSide, input.leadOut);
         const src = new Avoid.ConnEnd(new Avoid.Point(srcLead.x, srcLead.y));
         const dst = new Avoid.ConnEnd(new Avoid.Point(dstLead.x, dstLead.y));
         return {
@@ -283,6 +273,9 @@ export async function routeEdges(
         box: { x: n.x, y: n.y, w: n.w, h: n.h },
       })),
       edges: edgePins,
+      shapeBuffer: layout.settings.routing.shapeBuffer,
+      leadOut: layout.settings.routing.leadOut,
+      nudging: layout.settings.routing.nudging,
     });
   } catch (err) {
     const g = globalThis as { console?: { warn?: (...a: unknown[]) => void } };

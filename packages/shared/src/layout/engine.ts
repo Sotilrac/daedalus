@@ -7,7 +7,7 @@ import type {
   GridConfig,
   Side,
 } from '../model/types.js';
-import { emptyConnections, SIDES } from '../model/types.js';
+import { defaultSettings, emptyConnections, SIDES } from '../model/types.js';
 import { snap, snapUp, clampToGrid } from './snap.js';
 import { classifySide, sideSortKey, type BoundingBox } from './sides.js';
 import type { D2Diagram } from '../d2/types.js';
@@ -154,6 +154,7 @@ export function buildLayoutFromRaw({ raw, grid, prev }: BuildLayoutInput): Layou
     version: 1,
     grid: fittedGrid,
     viewport: prev?.viewport ?? { zoom: 1, panX: 0, panY: 0, theme: 'blueprint' },
+    settings: prev?.settings ?? defaultSettings(),
     nodes,
     edges: edgeSides,
     unplaced: [],

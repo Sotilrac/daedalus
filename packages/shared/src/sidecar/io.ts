@@ -1,4 +1,5 @@
 import type { Layout } from '../model/types.js';
+import { defaultSettings } from '../model/types.js';
 import { validateSidecar } from './schema.js';
 
 export interface SidecarFile {
@@ -26,12 +27,19 @@ export function serializeSidecar(file: SidecarFile): string {
 }
 
 // V1 is the only version; the migrate hook is here so future versions can
-// upgrade older payloads in place before validation.
+// upgrade older payloads in place before validation. We also fill in fields
+// added after the first release (currently `settings`) so older sidecars keep
+// loading without forcing a manual edit.
 function migrate(input: unknown): unknown {
   if (typeof input !== 'object' || input === null) return emptySidecar();
   const obj = input as Record<string, unknown>;
-  if ('entries' in obj) return obj;
-  return emptySidecar();
+  if (!('entries' in obj)) return emptySidecar();
+  const entries = obj.entries as Record<string, Record<string, unknown>>;
+  for (const key of Object.keys(entries)) {
+    const entry = entries[key];
+    if (entry && !('settings' in entry)) entry.settings = defaultSettings();
+  }
+  return obj;
 }
 
 export function setEntry(file: SidecarFile, entryPath: string, layout: Layout): SidecarFile {

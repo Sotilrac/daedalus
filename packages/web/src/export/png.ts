@@ -1,7 +1,11 @@
-import { serializeSvg } from './svg.js';
+import { serializeSvg, type ExportOptions } from './svg.js';
 
-export async function svgToPngBlob(svg: SVGSVGElement, scale = 2): Promise<Blob> {
-  const text = serializeSvg(svg);
+export async function svgToPngBlob(
+  svg: SVGSVGElement,
+  opts: ExportOptions,
+  scale = 2,
+): Promise<Blob> {
+  const text = serializeSvg(svg, opts);
   const url = URL.createObjectURL(new Blob([text], { type: 'image/svg+xml;charset=utf-8' }));
   try {
     const img = new Image();
@@ -11,8 +15,8 @@ export async function svgToPngBlob(svg: SVGSVGElement, scale = 2): Promise<Blob>
       img.onerror = () => reject(new Error('Failed to load SVG for PNG export'));
       img.src = url;
     });
-    const w = svg.viewBox.baseVal.width || svg.clientWidth;
-    const h = svg.viewBox.baseVal.height || svg.clientHeight;
+    const w = opts.bbox.w + opts.margin * 2;
+    const h = opts.bbox.h + opts.margin * 2;
     const canvas = document.createElement('canvas');
     canvas.width = Math.round(w * scale);
     canvas.height = Math.round(h * scale);

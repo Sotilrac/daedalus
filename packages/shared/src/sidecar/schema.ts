@@ -68,11 +68,37 @@ export const sidecarSchema: JSONSchemaType<{ entries: Record<string, Layout> }> 
             required: ['zoom', 'panX', 'panY', 'theme'],
             additionalProperties: false,
           },
+          settings: {
+            type: 'object',
+            properties: {
+              routing: {
+                type: 'object',
+                properties: {
+                  shapeBuffer: { type: 'number' },
+                  leadOut: { type: 'number' },
+                  nudging: { type: 'number' },
+                },
+                required: ['shapeBuffer', 'leadOut', 'nudging'],
+                additionalProperties: false,
+              },
+              export: {
+                type: 'object',
+                properties: {
+                  margin: { type: 'number' },
+                  showGrid: { type: 'boolean' },
+                },
+                required: ['margin', 'showGrid'],
+                additionalProperties: false,
+              },
+            },
+            required: ['routing', 'export'],
+            additionalProperties: false,
+          },
           nodes: { type: 'object', required: [], additionalProperties: nodeSchema },
           edges: { type: 'object', required: [], additionalProperties: edgeSchema },
           unplaced: { type: 'array', items: { type: 'string' } },
         },
-        required: ['version', 'grid', 'viewport', 'nodes', 'edges', 'unplaced'],
+        required: ['version', 'grid', 'viewport', 'settings', 'nodes', 'edges', 'unplaced'],
         additionalProperties: false,
       },
     },

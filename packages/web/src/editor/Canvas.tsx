@@ -53,7 +53,7 @@ export function Canvas(): JSX.Element | null {
         <defs>
           <GridDefs grid={plan.grid} />
         </defs>
-        <rect width={w} height={h} fill={`url(#${plan.grid.id})`} />
+        <rect className="grid-bg" width={w} height={h} fill={`url(#${plan.grid.id})`} />
         <g className="edges">
           {plan.edges.map((e) => (
             <EdgeView key={e.id} edge={e} />

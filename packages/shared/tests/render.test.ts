@@ -14,6 +14,10 @@ const layout: Layout = {
   version: 1,
   grid: { size: 16, cols: 80, rows: 50 },
   viewport: { zoom: 1, panX: 0, panY: 0, theme: 'blueprint' },
+  settings: {
+    routing: { shapeBuffer: 16, leadOut: 16, nudging: 16 },
+    export: { margin: 16, showGrid: false },
+  },
   nodes: {
     a: {
       x: 0,
