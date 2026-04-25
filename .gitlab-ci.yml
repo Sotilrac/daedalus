@@ -1,0 +1,71 @@
+default:
+  # Pinned to the current Node LTS on Debian Bookworm. Bump when the next
+  # Node LTS lands rather than relying on `latest` tags.
+  image: node:22.21.1-bookworm
+  interruptible: true
+
+variables:
+  PNPM_HOME: '$CI_PROJECT_DIR/.pnpm-store'
+  npm_config_cache: '$CI_PROJECT_DIR/.npm'
+
+stages: [install, check, build]
+
+.pnpm-cache: &pnpm-cache
+  key:
+    files: [pnpm-lock.yaml]
+  paths: [.pnpm-store/, node_modules/, packages/*/node_modules/]
+
+.setup: &setup
+  before_script:
+    - corepack enable
+    - corepack prepare pnpm@10.33.1 --activate
+    - pnpm config set store-dir .pnpm-store
+    - pnpm install --frozen-lockfile
+
+install:
+  stage: install
+  cache:
+    <<: *pnpm-cache
+    policy: pull-push
+  <<: *setup
+  script: [pnpm -v, node -v]
+
+lint:
+  stage: check
+  needs: [install]
+  cache:
+    <<: *pnpm-cache
+    policy: pull
+  <<: *setup
+  script: [pnpm lint]
+
+typecheck:
+  stage: check
+  needs: [install]
+  cache:
+    <<: *pnpm-cache
+    policy: pull
+  <<: *setup
+  script: [pnpm typecheck]
+
+test:
+  stage: check
+  needs: [install]
+  cache:
+    <<: *pnpm-cache
+    policy: pull
+  <<: *setup
+  script: [pnpm test]
+
+build:web:
+  stage: build
+  needs: [lint, typecheck, test]
+  cache:
+    <<: *pnpm-cache
+    policy: pull
+  <<: *setup
+  script: [pnpm --filter @daedalus/web build]
+  artifacts:
+    name: 'web-dist-$CI_COMMIT_SHORT_SHA'
+    paths: [packages/web/dist/]
+    expire_in: 14 days
