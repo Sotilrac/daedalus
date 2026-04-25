@@ -140,46 +140,42 @@ export function App(): JSX.Element {
 
   const onCenter = useCallback(() => {
     const host = hostRef.current;
-    const svg = svgRef.current;
-    const currentLayout = useGraphStore.getState().layout;
-    const offset = useGraphStore.getState().viewOffset;
-    if (!host || !svg || !currentLayout) return;
+    const state = useGraphStore.getState();
+    const currentLayout = state.layout;
+    const routes = state.routes;
+    if (!host || !currentLayout) return;
 
+    // Compute the natural-coords bbox the same way Canvas does.
     let minX = Infinity;
     let minY = Infinity;
     let maxX = -Infinity;
     let maxY = -Infinity;
-    for (const sel of ['.nodes', '.edges']) {
-      const g = svg.querySelector<SVGGElement>(sel);
-      if (!g) continue;
-      const b = g.getBBox();
-      if (b.width === 0 && b.height === 0) continue;
-      if (b.x < minX) minX = b.x;
-      if (b.y < minY) minY = b.y;
-      if (b.x + b.width > maxX) maxX = b.x + b.width;
-      if (b.y + b.height > maxY) maxY = b.y + b.height;
+    for (const n of Object.values(currentLayout.nodes)) {
+      if (n.x < minX) minX = n.x;
+      if (n.y < minY) minY = n.y;
+      if (n.x + n.w > maxX) maxX = n.x + n.w;
+      if (n.y + n.h > maxY) maxY = n.y + n.h;
+    }
+    for (const route of Object.values(routes)) {
+      for (const p of route) {
+        if (p.x < minX) minX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y > maxY) maxY = p.y;
+      }
     }
     if (!Number.isFinite(minX)) return;
-
-    // bbox in natural diagram coords (back out the active offset).
-    const bx = minX - offset.x;
-    const by = minY - offset.y;
     const bw = maxX - minX;
     const bh = maxY - minY;
     const hw = host.clientWidth;
     const hh = host.clientHeight;
 
-    let nx: number;
-    let ny: number;
-    if (bw <= hw && bh <= hh) {
-      nx = (hw - bw) / 2 - bx;
-      ny = (hh - bh) / 2 - by;
-    } else {
-      const pad = currentLayout.settings.export.margin;
-      nx = pad - bx;
-      ny = pad - by;
-    }
-    useGraphStore.getState().setViewOffset({ x: nx, y: ny });
+    // Per-axis: centre on a dimension if it fits, otherwise pad-align
+    // top-left on that axis only.
+    const pad = currentLayout.settings.export.margin;
+    const nx = bw <= hw ? (hw - bw) / 2 - minX : pad - minX;
+    const ny = bh <= hh ? (hh - bh) / 2 - minY : pad - minY;
+    state.setViewOffset({ x: nx, y: ny });
     host.scrollTo({ left: 0, top: 0 });
   }, []);
 

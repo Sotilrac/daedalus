@@ -14,7 +14,13 @@ const INLINE_TOKENS = [
 ];
 
 // Editor chrome that has no place in a static export.
-const EDITOR_CHROME = ['.anchor', '.selection-box', '.export-outline'];
+const EDITOR_CHROME = [
+  '.anchor',
+  '.selection-box',
+  '.export-outline',
+  '.resize-handle',
+  '.size-hint',
+];
 
 export interface ExportOptions {
   // Margin in user-space units around the diagram bounding box.

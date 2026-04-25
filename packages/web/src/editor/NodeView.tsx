@@ -5,11 +5,18 @@ import { AnchorControls } from './AnchorControls.js';
 
 export function NodeView({ node }: { node: RenderNode }): JSX.Element {
   const moveNode = useGraphStore((s) => s.moveNode);
+  const resizeNode = useGraphStore((s) => s.resizeNode);
   const selectNode = useGraphStore((s) => s.selectNode);
   const selection = useGraphStore((s) => s.selection);
   const [drag, setDrag] = useState<{
     originX: number;
     originY: number;
+    pointerX: number;
+    pointerY: number;
+  } | null>(null);
+  const [resize, setResize] = useState<{
+    origW: number;
+    origH: number;
     pointerX: number;
     pointerY: number;
   } | null>(null);
@@ -50,14 +57,65 @@ export function NodeView({ node }: { node: RenderNode }): JSX.Element {
         {node.label}
       </text>
       {isSelected && (
-        <rect
-          className="selection-box"
-          x={-2}
-          y={-2}
-          width={node.w + 4}
-          height={node.h + 4}
-          rx={2}
-        />
+        <>
+          <rect
+            className="selection-box"
+            x={-2}
+            y={-2}
+            width={node.w + 4}
+            height={node.h + 4}
+            rx={2}
+          />
+          <text
+            className="size-hint"
+            x={node.w}
+            y={-6}
+            textAnchor="end"
+            fill="var(--accent)"
+            fontFamily="var(--font-mono)"
+            fontSize={10}
+            pointerEvents="none"
+          >
+            {node.w} × {node.h}
+          </text>
+          <rect
+            className="resize-handle"
+            x={node.w - 6}
+            y={node.h - 6}
+            width={12}
+            height={12}
+            fill="var(--accent)"
+            stroke="var(--paper)"
+            strokeWidth={1}
+            style={{ cursor: 'nwse-resize' }}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              e.currentTarget.setPointerCapture(e.pointerId);
+              setResize({
+                origW: node.w,
+                origH: node.h,
+                pointerX: e.clientX,
+                pointerY: e.clientY,
+              });
+            }}
+            onPointerMove={(e) => {
+              if (!resize) return;
+              const dx = e.clientX - resize.pointerX;
+              const dy = e.clientY - resize.pointerY;
+              // Centre-anchored resize: both sides expand symmetrically, so
+              // a dx of N grows the width by 2N. The store snaps to grid and
+              // recomputes the position to keep the centre fixed.
+              const w = resize.origW + 2 * dx;
+              const h = resize.origH + 2 * dy;
+              void resizeNode(node.id, w, h);
+            }}
+            onPointerUp={(e) => {
+              e.currentTarget.releasePointerCapture(e.pointerId);
+              setResize(null);
+            }}
+            onPointerCancel={() => setResize(null)}
+          />
+        </>
       )}
       <AnchorControls nodeId={node.id} width={node.w} height={node.h} />
     </g>

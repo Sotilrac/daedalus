@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useRef, useState, type RefObject } from 'react';
+import { forwardRef, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useGraphStore } from '../store/graphStore.js';
 import { NodeView } from './NodeView.js';
 import { EdgeView } from './EdgeView.js';
@@ -24,8 +24,8 @@ export const Canvas = forwardRef<SVGSVGElement, CanvasProps>(function Canvas(
   const viewOffset = useGraphStore((s) => s.viewOffset);
 
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const routes = useGraphStore((s) => s.routes);
   const [host, setHost] = useState({ w: 0, h: 0 });
-  const [bbox, setBbox] = useState<BBox | null>(null);
 
   useEffect(() => {
     const el = hostRef.current;
@@ -40,51 +40,58 @@ export const Canvas = forwardRef<SVGSVGElement, CanvasProps>(function Canvas(
     return () => ro.disconnect();
   }, [hostRef]);
 
-  // Measure the diagram bounding box from the live `.nodes` and `.edges`
-  // groups. We back out the current viewOffset so the bbox is in the
-  // diagram's natural coords and can be re-translated on the next render.
-  useEffect(() => {
-    if (!svgRef.current) return undefined;
-    const id = requestAnimationFrame(() => {
-      const svg = svgRef.current;
-      if (!svg) return;
-      let minX = Infinity;
-      let minY = Infinity;
-      let maxX = -Infinity;
-      let maxY = -Infinity;
-      for (const sel of ['.nodes', '.edges']) {
-        const g = svg.querySelector<SVGGElement>(sel);
-        if (!g) continue;
-        const b = g.getBBox();
-        if (b.width === 0 && b.height === 0) continue;
-        if (b.x < minX) minX = b.x;
-        if (b.y < minY) minY = b.y;
-        if (b.x + b.width > maxX) maxX = b.x + b.width;
-        if (b.y + b.height > maxY) maxY = b.y + b.height;
+  // Natural-coords bbox of the diagram (before applying viewOffset). Computed
+  // directly from layout + routes — no DOM measurement — so the outline tracks
+  // the content in lock-step instead of via a measure-then-render round trip.
+  const naturalBBox = useMemo<BBox | null>(() => {
+    if (!layout) return null;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const n of Object.values(layout.nodes)) {
+      if (n.x < minX) minX = n.x;
+      if (n.y < minY) minY = n.y;
+      if (n.x + n.w > maxX) maxX = n.x + n.w;
+      if (n.y + n.h > maxY) maxY = n.y + n.h;
+    }
+    for (const route of Object.values(routes)) {
+      for (const p of route) {
+        if (p.x < minX) minX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y > maxY) maxY = p.y;
       }
-      if (Number.isFinite(minX)) {
-        setBbox({
-          x: minX - viewOffset.x,
-          y: minY - viewOffset.y,
-          w: maxX - minX,
-          h: maxY - minY,
-        });
-      }
-    });
-    return () => cancelAnimationFrame(id);
-  }, [plan, viewOffset.x, viewOffset.y]);
+    }
+    if (!Number.isFinite(minX)) return null;
+    return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+  }, [layout, routes]);
 
   if (!plan || !layout) return null;
+
+  // Outline lives outside the translate group and is positioned algebraically
+  // (natural bbox shifted by the current viewOffset). No layout-effect round
+  // trip, no drift.
+  const bbox: BBox | null = naturalBBox
+    ? {
+        x: naturalBBox.x + viewOffset.x,
+        y: naturalBBox.y + viewOffset.y,
+        w: naturalBBox.w,
+        h: naturalBBox.h,
+      }
+    : null;
 
   const margin = layout.settings.export.margin;
   const exportW = bbox ? Math.round(bbox.w + 2 * margin) : 0;
   const exportH = bbox ? Math.round(bbox.h + 2 * margin) : 0;
 
-  // Allow space for the size label below the outline (~24px).
-  const contentRight = bbox ? viewOffset.x + bbox.x + bbox.w + margin + 96 : 0;
-  const contentBottom = bbox ? viewOffset.y + bbox.y + bbox.h + margin + 32 : 0;
-  const w = Math.max(host.w, contentRight);
-  const h = Math.max(host.h, contentBottom);
+  // Allow space for the size label outside the bottom-right corner of the
+  // outline. The label renders at the outline's right edge, baseline 14 px
+  // below the outline; pad an extra ~24 px so it isn't clipped.
+  const outlineRight = bbox ? bbox.x + bbox.w + margin : 0;
+  const outlineBottom = bbox ? bbox.y + bbox.h + margin : 0;
+  const w = Math.max(host.w, outlineRight + 24);
+  const h = Math.max(host.h, outlineBottom + 24);
 
   return (
     <div className="canvas-fill">
@@ -117,33 +124,33 @@ export const Canvas = forwardRef<SVGSVGElement, CanvasProps>(function Canvas(
               <NodeView key={n.id} node={n} />
             ))}
           </g>
-          {bbox && (
-            <g className="export-outline">
-              <rect
-                x={bbox.x - margin}
-                y={bbox.y - margin}
-                width={exportW}
-                height={exportH}
-                fill="none"
-                stroke="var(--ink-muted)"
-                strokeWidth={1}
-                strokeDasharray="2 4"
-                opacity={0.5}
-              />
-              <text
-                className="size-label"
-                x={bbox.x + bbox.w + margin}
-                y={bbox.y + bbox.h + margin + 14}
-                textAnchor="end"
-                fill="var(--ink-muted)"
-                fontFamily="var(--font-mono)"
-                fontSize={10}
-              >
-                {exportW} × {exportH} px
-              </text>
-            </g>
-          )}
         </g>
+        {bbox && (
+          <g className="export-outline">
+            <rect
+              x={bbox.x - margin}
+              y={bbox.y - margin}
+              width={exportW}
+              height={exportH}
+              fill="none"
+              stroke="var(--ink-muted)"
+              strokeWidth={1}
+              strokeDasharray="2 4"
+              opacity={0.5}
+            />
+            <text
+              className="size-label"
+              x={bbox.x + bbox.w + margin}
+              y={bbox.y + bbox.h + margin + 14}
+              textAnchor="end"
+              fill="var(--ink-muted)"
+              fontFamily="var(--font-mono)"
+              fontSize={10}
+            >
+              {exportW} × {exportH} px
+            </text>
+          </g>
+        )}
       </svg>
     </div>
   );

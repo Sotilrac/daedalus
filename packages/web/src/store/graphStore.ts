@@ -39,6 +39,7 @@ export interface GraphState {
   }): Promise<void>;
   relayout(): Promise<void>;
   moveNode(id: NodeId, x: number, y: number): Promise<void>;
+  resizeNode(id: NodeId, w: number, h: number): Promise<void>;
   selectNode(id: NodeId | null): void;
   swapAnchor(node: NodeId, side: Side, edgeId: EdgeId, offset: number): Promise<void>;
   moveEdgeAnchor(node: NodeId, edgeId: EdgeId, toSide: Side, toIndex: number): Promise<void>;
@@ -126,6 +127,31 @@ export const useGraphStore = create<GraphState>((set, get) => ({
       ...layout,
       grid,
       nodes: { ...layout.nodes, [id]: { ...node, x: clamped.x, y: clamped.y } },
+    };
+    const routes = await routeEdges(model, nextLayout);
+    const plan = buildRenderPlan({ model, layout: nextLayout, routes });
+    set({ layout: nextLayout, routes, plan });
+  },
+
+  async resizeNode(id, w, h) {
+    const { model, layout } = get();
+    if (!model || !layout) return;
+    const node = layout.nodes[id];
+    if (!node) return;
+    const grid = layout.grid.size;
+    // Snap to grid; minimum one cell. Resize is centre-anchored so the node
+    // grows or shrinks symmetrically and stays where the user expects.
+    const sw = Math.max(grid, Math.round(w / grid) * grid);
+    const sh = Math.max(grid, Math.round(h / grid) * grid);
+    if (sw === node.w && sh === node.h) return;
+    const cx = node.x + node.w / 2;
+    const cy = node.y + node.h / 2;
+    const nx = Math.max(0, Math.round((cx - sw / 2) / grid) * grid);
+    const ny = Math.max(0, Math.round((cy - sh / 2) / grid) * grid);
+
+    const nextLayout: Layout = {
+      ...layout,
+      nodes: { ...layout.nodes, [id]: { ...node, x: nx, y: ny, w: sw, h: sh } },
     };
     const routes = await routeEdges(model, nextLayout);
     const plan = buildRenderPlan({ model, layout: nextLayout, routes });
