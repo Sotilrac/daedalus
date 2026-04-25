@@ -42,12 +42,15 @@ export function App(): JSX.Element {
   const lastPersistedRef = useRef<unknown>(null);
 
   // Load D2 files + sidecar, recompile, reconcile. Reads the latest model from
-  // the store at call time so we don't keep regenerating the callback.
+  // the store at call time so we don't keep regenerating the callback. The
+  // first load for a given source auto-centres so the user immediately sees
+  // the diagram in view; later loads (folder watcher events) leave the user's
+  // pan untouched.
   useEffect(() => {
     if (!source) return undefined;
     let cancelled = false;
 
-    const load = async () => {
+    const load = async (recenter: boolean) => {
       setLoading(true);
       try {
         const files = await readAllD2(source);
@@ -66,9 +69,12 @@ export function App(): JSX.Element {
         });
         if (cancelled) return;
         setErrors([]);
-        // Mark whatever the store now holds as already persisted; don't write
-        // it back unless the user touches it.
         lastPersistedRef.current = useGraphStore.getState().layout;
+        if (recenter) {
+          requestAnimationFrame(() => {
+            if (!cancelled) onCenterRef.current();
+          });
+        }
       } catch (err) {
         if (!cancelled) setErrors(normalizeD2Error(err));
       } finally {
@@ -76,10 +82,10 @@ export function App(): JSX.Element {
       }
     };
 
-    void load();
+    void load(true);
     const off = source.subscribe((changes) => {
       if (changes.length === 0) return;
-      void load();
+      void load(false);
     });
     return () => {
       cancelled = true;
@@ -178,6 +184,12 @@ export function App(): JSX.Element {
     state.setViewOffset({ x: nx, y: ny });
     host.scrollTo({ left: 0, top: 0 });
   }, []);
+
+  // Stable handle to the latest onCenter so the load effect can call it
+  // without listing it as a dep (which would be stable anyway, but this keeps
+  // intent explicit).
+  const onCenterRef = useRef(onCenter);
+  onCenterRef.current = onCenter;
 
   const onExportPng = useCallback(async () => {
     if (!svgRef.current || !layout) return;
