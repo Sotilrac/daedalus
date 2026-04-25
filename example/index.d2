@@ -1,7 +1,54 @@
 ...@nodes
 
-api -> db: query
-api -> cache: lookup
-cache -> db: miss
-worker -> db: write
-worker -> cache: invalidate
+user -> api: request {
+  style: {
+    stroke: "#fec601"
+    stroke-width: 2
+  }
+}
+
+api -> cache: lookup {
+  style: {
+    stroke: "#f4f1de"
+  }
+}
+
+api -> db: query {
+  style: {
+    stroke: "#7aa6cd"
+    stroke-width: 2
+  }
+}
+
+cache -> db: cache miss {
+  style: {
+    stroke: "#f4f1de"
+    stroke-dash: 4
+  }
+}
+
+api -> queue: enqueue {
+  style: {
+    stroke: "#a3d9b1"
+  }
+}
+
+queue -> worker: dispatch {
+  style: {
+    stroke: "#a3d9b1"
+    stroke-width: 2
+  }
+}
+
+worker -> db: write {
+  style: {
+    stroke: "#a3d9b1"
+  }
+}
+
+worker -> cache: invalidate {
+  style: {
+    stroke: "#ef8b6f"
+    stroke-dash: 3
+  }
+}

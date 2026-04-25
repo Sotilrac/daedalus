@@ -135,13 +135,27 @@ export function App(): JSX.Element {
         <button onClick={() => void onPickFolder()}>Open folder</button>
         <button
           onClick={() => {
-            // Force a re-compile by nudging the source identity. Cheaper than a
-            // dedicated relayout button: the existing load path already handles
-            // structural diffs and the unplaced tray.
-            const current = source;
-            if (!current) return;
-            setSource(null);
-            queueMicrotask(() => setSource(current));
+            if (!source) return;
+            void (async () => {
+              setLoading(true);
+              try {
+                const files = await readAllD2(source);
+                setFiles(files);
+                // prev=null forces a fresh ELK pass; reconcile is skipped.
+                await useGraphStore.getState().loadFromCompile({
+                  files,
+                  inputPath: entryPath,
+                  prevModel: null,
+                  prevLayout: null,
+                });
+                lastPersistedRef.current = null;
+                setErrors([]);
+              } catch (err) {
+                setErrors(normalizeD2Error(err));
+              } finally {
+                setLoading(false);
+              }
+            })();
           }}
           disabled={!source}
         >

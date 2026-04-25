@@ -7,7 +7,7 @@ import type {
   ShapeKind,
 } from '../model/types.js';
 import { edgeId } from '../model/ids.js';
-import type { D2Diagram, D2Shape, D2Connection, D2Style } from './types.js';
+import type { D2Diagram } from './types.js';
 
 const SHAPE_KINDS = new Set<ShapeKind>([
   'rectangle',
@@ -28,62 +28,87 @@ function asShapeKind(t: string | undefined): ShapeKind {
   return 'rectangle';
 }
 
-function num(v: number | string | undefined): number | undefined {
-  if (typeof v === 'number') return v;
-  if (typeof v === 'string') {
-    const n = Number(v);
-    if (Number.isFinite(n)) return n;
-  }
-  return undefined;
+// D2's compile output exposes shape and connection styles as flat fields on
+// the object (fill, stroke, strokeWidth, strokeDash, ...). Earlier versions of
+// this adapter expected a nested `style` object; that's the d2graph view, not
+// d2target. We read flat fields here.
+interface D2FlatNode {
+  id: string;
+  type?: string;
+  pos?: { x: number; y: number };
+  width?: number;
+  height?: number;
+  fill?: string;
+  stroke?: string;
+  strokeWidth?: number;
+  strokeDash?: number;
+  opacity?: number;
+  shadow?: boolean;
+  bold?: boolean;
+  italic?: boolean;
+  color?: string;
+  label?: string;
+  // Text mixin in d2target.Shape:
+  fontFamily?: string;
+  fontSize?: number;
+  fontColor?: string;
 }
 
-function nodeStyle(s: D2Style | undefined): NodeStyle {
-  if (!s) return {};
+interface D2FlatConnection {
+  src: string;
+  dst: string;
+  label?: string;
+  stroke?: string;
+  strokeWidth?: number;
+  strokeDash?: number;
+  opacity?: number;
+  fontColor?: string;
+  color?: string;
+  italic?: boolean;
+  bold?: boolean;
+}
+
+function nodeStyle(s: D2FlatNode): NodeStyle {
   const out: NodeStyle = {};
   if (s.fill !== undefined) out.fill = s.fill;
   if (s.stroke !== undefined) out.stroke = s.stroke;
-  const sw = num(s['stroke-width']);
-  if (sw !== undefined) out.strokeWidth = sw;
-  const sd = num(s['stroke-dash']);
-  if (sd !== undefined) out.strokeDash = sd;
-  if (s['font-color'] !== undefined) out.fontColor = s['font-color'];
-  if (s.bold !== undefined) out.bold = s.bold;
-  if (s.italic !== undefined) out.italic = s.italic;
-  if (s.shadow !== undefined) out.shadow = s.shadow;
-  const op = num(s.opacity);
-  if (op !== undefined) out.opacity = op;
+  if (typeof s.strokeWidth === 'number') out.strokeWidth = s.strokeWidth;
+  if (typeof s.strokeDash === 'number' && s.strokeDash > 0) out.strokeDash = s.strokeDash;
+  if (s.fontColor !== undefined) out.fontColor = s.fontColor;
+  if (s.color !== undefined && out.fontColor === undefined) out.fontColor = s.color;
+  if (s.bold) out.bold = true;
+  if (s.italic) out.italic = true;
+  if (s.shadow) out.shadow = true;
+  if (typeof s.opacity === 'number' && s.opacity !== 1) out.opacity = s.opacity;
   return out;
 }
 
-function edgeStyle(s: D2Style | undefined): EdgeStyle {
-  if (!s) return {};
+function edgeStyle(c: D2FlatConnection): EdgeStyle {
   const out: EdgeStyle = {};
-  if (s.stroke !== undefined) out.stroke = s.stroke;
-  const sw = num(s['stroke-width']);
-  if (sw !== undefined) out.strokeWidth = sw;
-  const sd = num(s['stroke-dash']);
-  if (sd !== undefined) out.strokeDash = sd;
-  if (s['font-color'] !== undefined) out.fontColor = s['font-color'];
-  const op = num(s.opacity);
-  if (op !== undefined) out.opacity = op;
+  if (c.stroke !== undefined) out.stroke = c.stroke;
+  if (typeof c.strokeWidth === 'number') out.strokeWidth = c.strokeWidth;
+  if (typeof c.strokeDash === 'number' && c.strokeDash > 0) out.strokeDash = c.strokeDash;
+  if (c.fontColor !== undefined) out.fontColor = c.fontColor;
+  if (c.color !== undefined && out.fontColor === undefined) out.fontColor = c.color;
+  if (typeof c.opacity === 'number' && c.opacity !== 1) out.opacity = c.opacity;
   return out;
 }
 
-function shapeToNode(s: D2Shape): ModelNode {
+function shapeToNode(s: D2FlatNode): ModelNode {
   return {
     label: s.label ?? s.id,
     shape: asShapeKind(s.type),
-    style: nodeStyle(s.style),
+    style: nodeStyle(s),
     rawWidth: s.width ?? 144,
     rawHeight: s.height ?? 64,
   };
 }
 
-function connectionToEdge(c: D2Connection): ModelEdge {
+function connectionToEdge(c: D2FlatConnection): ModelEdge {
   const edge: ModelEdge = {
     from: c.src,
     to: c.dst,
-    style: edgeStyle(c.style),
+    style: edgeStyle(c),
   };
   if (c.label) edge.label = c.label;
   return edge;
@@ -91,12 +116,12 @@ function connectionToEdge(c: D2Connection): ModelEdge {
 
 export function diagramToModel(d: D2Diagram): Model {
   const nodes: Record<string, ModelNode> = {};
-  for (const s of d.shapes ?? []) {
+  for (const s of (d.shapes ?? []) as unknown as D2FlatNode[]) {
     nodes[s.id] = shapeToNode(s);
   }
   const counts = new Map<string, number>();
   const edges: Record<string, ModelEdge> = {};
-  for (const c of d.connections ?? []) {
+  for (const c of (d.connections ?? []) as unknown as D2FlatConnection[]) {
     const key = `${c.src}->${c.dst}`;
     const idx = counts.get(key) ?? 0;
     counts.set(key, idx + 1);

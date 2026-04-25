@@ -125,11 +125,34 @@ export interface BuildLayoutInput extends SnapLayoutOptions {
   prev?: Layout | undefined;
 }
 
+// Fit grid bounds to the laid-out shapes plus a margin. Without this the
+// default 80x50 grid clamps any layout that runs taller or wider, producing
+// stacks of overlapping nodes pushed to the edge.
+export function fitGridToShapes(raw: RawLayout, grid: GridConfig): GridConfig {
+  const margin = grid.size * 4;
+  let maxRight = 0;
+  let maxBottom = 0;
+  for (const s of raw.shapes) {
+    const w = snapUp(Math.max(s.w, grid.size), grid.size);
+    const h = snapUp(Math.max(s.h, grid.size), grid.size);
+    const sx = snap(s.x, grid.size);
+    const sy = snap(s.y, grid.size);
+    maxRight = Math.max(maxRight, sx + w + margin);
+    maxBottom = Math.max(maxBottom, sy + h + margin);
+  }
+  return {
+    size: grid.size,
+    cols: Math.max(grid.cols, Math.ceil(maxRight / grid.size)),
+    rows: Math.max(grid.rows, Math.ceil(maxBottom / grid.size)),
+  };
+}
+
 export function buildLayoutFromRaw({ raw, grid, prev }: BuildLayoutInput): Layout {
-  const { nodes, edgeSides } = snapAndAssignSides(raw, { grid });
+  const fittedGrid = fitGridToShapes(raw, grid);
+  const { nodes, edgeSides } = snapAndAssignSides(raw, { grid: fittedGrid });
   return {
     version: 1,
-    grid,
+    grid: fittedGrid,
     viewport: prev?.viewport ?? { zoom: 1, panX: 0, panY: 0, theme: 'blueprint' },
     nodes,
     edges: edgeSides,

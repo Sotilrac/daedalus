@@ -72,29 +72,59 @@ function renderShape(node: RenderNode): JSX.Element {
     opacity: node.style.opacity,
     ...(node.style.strokeDasharray ? { strokeDasharray: node.style.strokeDasharray } : {}),
   };
+  const w = node.w;
+  const h = node.h;
   switch (node.shape) {
     case 'circle':
     case 'oval':
-      return (
-        <ellipse cx={node.w / 2} cy={node.h / 2} rx={node.w / 2} ry={node.h / 2} {...common} />
-      );
+      return <ellipse cx={w / 2} cy={h / 2} rx={w / 2} ry={h / 2} {...common} />;
     case 'diamond':
-      return (
-        <polygon
-          points={`${node.w / 2},0 ${node.w},${node.h / 2} ${node.w / 2},${node.h} 0,${node.h / 2}`}
-          {...common}
-        />
-      );
+      return <polygon points={`${w / 2},0 ${w},${h / 2} ${w / 2},${h} 0,${h / 2}`} {...common} />;
     case 'hexagon': {
-      const q = node.w / 4;
+      const q = w / 4;
       return (
         <polygon
-          points={`${q},0 ${node.w - q},0 ${node.w},${node.h / 2} ${node.w - q},${node.h} ${q},${node.h} 0,${node.h / 2}`}
+          points={`${q},0 ${w - q},0 ${w},${h / 2} ${w - q},${h} ${q},${h} 0,${h / 2}`}
           {...common}
         />
       );
     }
+    case 'parallelogram': {
+      const skew = Math.min(w / 6, 16);
+      return <polygon points={`${skew},0 ${w},0 ${w - skew},${h} 0,${h}`} {...common} />;
+    }
+    case 'cylinder': {
+      const ry = Math.max(4, Math.min(h * 0.12, 14));
+      const body = `M 0 ${ry} L 0 ${h - ry} A ${w / 2} ${ry} 0 0 0 ${w} ${h - ry} L ${w} ${ry}`;
+      return (
+        <g>
+          <path d={body} {...common} />
+          <ellipse cx={w / 2} cy={ry} rx={w / 2} ry={ry} {...common} />
+        </g>
+      );
+    }
+    case 'stored_data': {
+      const rx = Math.max(8, Math.min(w * 0.1, 18));
+      // D-shape from each side: left side curves in, right side curves out.
+      const d = `M ${rx} 0 L ${w} 0 A ${rx} ${h / 2} 0 0 1 ${w} ${h} L ${rx} ${h} A ${rx} ${h / 2} 0 0 0 ${rx} 0 Z`;
+      return <path d={d} {...common} />;
+    }
+    case 'document': {
+      const wave = Math.max(6, h * 0.12);
+      const d = `M 0 0 L ${w} 0 L ${w} ${h - wave} Q ${(3 * w) / 4} ${h} ${w / 2} ${h - wave / 2} Q ${w / 4} ${h - wave} 0 ${h} Z`;
+      return <path d={d} {...common} />;
+    }
+    case 'package': {
+      const tab = Math.max(8, h * 0.2);
+      const tabW = Math.min(w * 0.4, 64);
+      return (
+        <g>
+          <rect x={0} y={tab} width={w} height={h - tab} {...common} />
+          <rect x={0} y={0} width={tabW} height={tab} {...common} />
+        </g>
+      );
+    }
     default:
-      return <rect width={node.w} height={node.h} rx={2} {...common} />;
+      return <rect width={w} height={h} rx={2} {...common} />;
   }
 }

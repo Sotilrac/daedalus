@@ -86,12 +86,24 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     const node = layout.nodes[id];
     if (!node) return;
 
-    const sx = snap(x, layout.grid.size);
-    const sy = snap(y, layout.grid.size);
-    const clamped = clampToGrid(sx, sy, node.w, node.h, layout.grid);
+    const sx = Math.max(0, snap(x, layout.grid.size));
+    const sy = Math.max(0, snap(y, layout.grid.size));
+
+    // Grow the grid if the user drags past current bounds; clamp keeps a
+    // strict upper bound only when the new position fits.
+    const margin = layout.grid.size * 4;
+    const minCols = Math.ceil((sx + node.w + margin) / layout.grid.size);
+    const minRows = Math.ceil((sy + node.h + margin) / layout.grid.size);
+    const grid = {
+      size: layout.grid.size,
+      cols: Math.max(layout.grid.cols, minCols),
+      rows: Math.max(layout.grid.rows, minRows),
+    };
+    const clamped = clampToGrid(sx, sy, node.w, node.h, grid);
 
     const nextLayout: Layout = {
       ...layout,
+      grid,
       nodes: { ...layout.nodes, [id]: { ...node, x: clamped.x, y: clamped.y } },
     };
     const routes = await routeEdges(model, nextLayout);
