@@ -3,13 +3,16 @@ pre-commit:
   commands:
     prettier:
       glob: '*.{ts,tsx,js,jsx,css,json,yaml,yml,md}'
-      run: 'pnpm exec prettier --check {staged_files}'
+      run: 'pnpm exec prettier --write {staged_files}'
+      stage_fixed: true
     eslint:
       glob: '*.{ts,tsx,js,jsx}'
-      run: 'pnpm exec eslint {staged_files}'
+      run: 'pnpm exec eslint --fix {staged_files}'
+      stage_fixed: true
     stylelint:
       glob: '*.css'
-      run: 'pnpm exec stylelint {staged_files}'
+      run: 'pnpm exec stylelint --fix {staged_files}'
+      stage_fixed: true
     editorconfig:
       run: 'pnpm exec editorconfig-checker'
 

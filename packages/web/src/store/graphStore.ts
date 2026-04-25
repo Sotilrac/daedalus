@@ -38,6 +38,7 @@ export interface GraphState {
   moveNode(id: NodeId, x: number, y: number): Promise<void>;
   selectNode(id: NodeId | null): void;
   swapAnchor(node: NodeId, side: Side, edgeId: EdgeId, offset: number): Promise<void>;
+  moveEdgeAnchor(node: NodeId, edgeId: EdgeId, toSide: Side, toIndex: number): Promise<void>;
   setTheme(theme: 'blueprint' | 'paper'): void;
 }
 
@@ -133,6 +134,47 @@ export const useGraphStore = create<GraphState>((set, get) => ({
         [node]: { ...n, connections: { ...n.connections, [side]: swapped } },
       },
     };
+    const routes = await routeEdges(model, nextLayout);
+    const plan = buildRenderPlan({ model, layout: nextLayout, routes });
+    set({ layout: nextLayout, routes, plan });
+  },
+
+  async moveEdgeAnchor(nodeId, edgeId, toSide, toIndex) {
+    const { model, layout } = get();
+    if (!model || !layout) return;
+    const node = layout.nodes[nodeId];
+    const edge = model.edges[edgeId];
+    const sides = layout.edges[edgeId];
+    if (!node || !edge || !sides) return;
+
+    // Identify which endpoint is being moved (a self-loop matches both;
+    // we use the from-endpoint by convention for simplicity).
+    const isFrom = edge.from === nodeId;
+    const isTo = edge.to === nodeId;
+    if (!isFrom && !isTo) return;
+    const fromSide = isFrom ? sides.fromSide : sides.toSide;
+
+    const fromList = node.connections[fromSide];
+    const fromIdx = fromList.indexOf(edgeId);
+    if (fromIdx < 0) return;
+
+    // Rebuild this node's connection map: drop the edge from the old side,
+    // then splice it into the new side at toIndex.
+    const nextConnections = { ...node.connections };
+    nextConnections[fromSide] = fromList.filter((id) => id !== edgeId);
+    const target = [...nextConnections[toSide]];
+    const safeIndex = Math.max(0, Math.min(toIndex, target.length));
+    target.splice(safeIndex, 0, edgeId);
+    nextConnections[toSide] = target;
+
+    const nextSides = isFrom ? { ...sides, fromSide: toSide } : { ...sides, toSide: toSide };
+
+    const nextLayout: Layout = {
+      ...layout,
+      nodes: { ...layout.nodes, [nodeId]: { ...node, connections: nextConnections } },
+      edges: { ...layout.edges, [edgeId]: nextSides },
+    };
+
     const routes = await routeEdges(model, nextLayout);
     const plan = buildRenderPlan({ model, layout: nextLayout, routes });
     set({ layout: nextLayout, routes, plan });
