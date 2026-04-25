@@ -29,7 +29,7 @@ export interface GraphState {
   layout: Layout | null;
   routes: EdgeRoutes;
   plan: RenderPlan | null;
-  selection: NodeId | null;
+  selection: NodeId[];
   needsRelayout: boolean;
   viewOffset: { x: number; y: number };
   setViewOffset(o: { x: number; y: number }): void;
@@ -41,8 +41,15 @@ export interface GraphState {
   }): Promise<void>;
   relayout(): Promise<void>;
   moveNode(id: NodeId, x: number, y: number): Promise<void>;
+  // Batched move: each entry's `(x, y)` is the desired top-left for that
+  // node id. Snap, clamp, and descendant-shift run per entry, then routing
+  // and the render plan are computed once.
+  moveNodes(updates: { id: NodeId; x: number; y: number }[]): Promise<void>;
   resizeNode(id: NodeId, w: number, h: number, anchor?: { x: number; y: number }): Promise<void>;
-  selectNode(id: NodeId | null): void;
+  setSelection(ids: NodeId[]): void;
+  selectOnly(id: NodeId): void;
+  addToSelection(id: NodeId): void;
+  clearSelection(): void;
   swapAnchor(node: NodeId, side: Side, edgeId: EdgeId, offset: number): Promise<void>;
   moveEdgeAnchor(node: NodeId, edgeId: EdgeId, toSide: Side, toIndex: number): Promise<void>;
   setTheme(theme: 'blueprint' | 'paper'): void;
@@ -59,7 +66,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   layout: null,
   routes: {},
   plan: null,
-  selection: null,
+  selection: [],
   needsRelayout: false,
   viewOffset: { x: 0, y: 0 },
   setViewOffset(o) {
@@ -143,6 +150,48 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     set({ layout: nextLayout, routes, plan });
   },
 
+  async moveNodes(updates) {
+    const { model, layout } = get();
+    if (!model || !layout) return;
+    const grid = layout.grid.size;
+    const allIds = Object.keys(layout.nodes);
+    const updateSet = new Set(updates.map((u) => u.id));
+    const nextNodes: Record<NodeId, Layout['nodes'][string]> = { ...layout.nodes };
+
+    for (const u of updates) {
+      const node = nextNodes[u.id];
+      if (!node) continue;
+      let sx = snap(u.x, grid);
+      let sy = snap(u.y, grid);
+      // Skip parent-clamp when the parent is also moving — otherwise the
+      // child would be pinned to the parent's *old* box and lag behind.
+      const par = parentId(u.id);
+      const parentNode = par && !updateSet.has(par) ? nextNodes[par] : null;
+      if (parentNode) {
+        sx = Math.max(parentNode.x, Math.min(parentNode.x + parentNode.w - node.w, sx));
+        sy = Math.max(parentNode.y, Math.min(parentNode.y + parentNode.h - node.h, sy));
+      }
+      const dx = sx - node.x;
+      const dy = sy - node.y;
+      nextNodes[u.id] = { ...node, x: sx, y: sy };
+      if (dx !== 0 || dy !== 0) {
+        for (const childId of descendantIds(allIds, u.id)) {
+          // Children explicitly in the update set get their own (x, y) set;
+          // we don't want the parent's delta to compose with theirs.
+          if (updateSet.has(childId)) continue;
+          const child = nextNodes[childId];
+          if (!child) continue;
+          nextNodes[childId] = { ...child, x: child.x + dx, y: child.y + dy };
+        }
+      }
+    }
+
+    const nextLayout: Layout = { ...layout, nodes: nextNodes };
+    const routes = await routeEdges(model, nextLayout);
+    const plan = buildRenderPlan({ model, layout: nextLayout, routes });
+    set({ layout: nextLayout, routes, plan });
+  },
+
   async resizeNode(id, w, h, anchor) {
     const { model, layout } = get();
     if (!model || !layout) return;
@@ -202,8 +251,29 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     set({ layout: nextLayout, routes, plan });
   },
 
-  selectNode(id) {
-    set({ selection: id });
+  setSelection(ids) {
+    // Drop duplicates while preserving order.
+    const seen = new Set<NodeId>();
+    const dedup: NodeId[] = [];
+    for (const id of ids) {
+      if (!seen.has(id)) {
+        seen.add(id);
+        dedup.push(id);
+      }
+    }
+    set({ selection: dedup });
+  },
+  selectOnly(id) {
+    set({ selection: [id] });
+  },
+  addToSelection(id) {
+    const current = get().selection;
+    if (current.includes(id)) return;
+    set({ selection: [...current, id] });
+  },
+  clearSelection() {
+    if (get().selection.length === 0) return;
+    set({ selection: [] });
   },
 
   async swapAnchor(node, side, edgeId, offset) {

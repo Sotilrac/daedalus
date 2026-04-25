@@ -1,16 +1,14 @@
 import { useState } from 'react';
-import type { RenderNode } from '@daedalus/shared';
+import type { NodeId, RenderNode } from '@daedalus/shared';
 import { useGraphStore } from '../store/graphStore.js';
 import { AnchorControls } from './AnchorControls.js';
 
 export function NodeView({ node }: { node: RenderNode }): JSX.Element {
-  const moveNode = useGraphStore((s) => s.moveNode);
+  const moveNodes = useGraphStore((s) => s.moveNodes);
   const resizeNode = useGraphStore((s) => s.resizeNode);
-  const selectNode = useGraphStore((s) => s.selectNode);
   const selection = useGraphStore((s) => s.selection);
   const [drag, setDrag] = useState<{
-    originX: number;
-    originY: number;
+    origins: Record<NodeId, { x: number; y: number }>;
     pointerX: number;
     pointerY: number;
   } | null>(null);
@@ -23,23 +21,52 @@ export function NodeView({ node }: { node: RenderNode }): JSX.Element {
     pointerY: number;
   } | null>(null);
 
-  const isSelected = selection === node.id;
+  const isSelected = selection.includes(node.id);
+  const isOnlySelected = selection.length === 1 && selection[0] === node.id;
 
   return (
     <g
       className={`node ${drag ? 'dragging' : ''}`}
       transform={`translate(${node.x} ${node.y})`}
       onPointerDown={(e) => {
+        e.stopPropagation();
         const target = e.currentTarget;
         target.setPointerCapture(e.pointerId);
-        selectNode(node.id);
-        setDrag({ originX: node.x, originY: node.y, pointerX: e.clientX, pointerY: e.clientY });
+
+        // Selection rules:
+        //  - clicking an already-selected node when several are selected
+        //    drops to a single-select on that node (so the resize handle
+        //    appears on the one the user just clicked);
+        //  - clicking an unselected node accumulates it into the selection;
+        //  - clicking the only-selected node is a no-op.
+        const store = useGraphStore.getState();
+        const sel = store.selection;
+        let nextSel: NodeId[];
+        if (sel.includes(node.id)) {
+          nextSel = sel.length > 1 ? [node.id] : sel;
+        } else {
+          nextSel = [...sel, node.id];
+        }
+        if (nextSel !== sel) store.setSelection(nextSel);
+
+        const layout = store.layout;
+        const origins: Record<NodeId, { x: number; y: number }> = {};
+        for (const id of nextSel) {
+          const n = layout?.nodes[id];
+          if (n) origins[id] = { x: n.x, y: n.y };
+        }
+        setDrag({ origins, pointerX: e.clientX, pointerY: e.clientY });
       }}
       onPointerMove={(e) => {
         if (!drag) return;
         const dx = e.clientX - drag.pointerX;
         const dy = e.clientY - drag.pointerY;
-        void moveNode(node.id, drag.originX + dx, drag.originY + dy);
+        const updates = Object.entries(drag.origins).map(([id, o]) => ({
+          id,
+          x: o.x + dx,
+          y: o.y + dy,
+        }));
+        void moveNodes(updates);
       }}
       onPointerUp={(e) => {
         e.currentTarget.releasePointerCapture(e.pointerId);
@@ -59,15 +86,17 @@ export function NodeView({ node }: { node: RenderNode }): JSX.Element {
         {node.label}
       </text>
       {isSelected && (
+        <rect
+          className="selection-box"
+          x={-2}
+          y={-2}
+          width={node.w + 4}
+          height={node.h + 4}
+          rx={2}
+        />
+      )}
+      {isOnlySelected && (
         <>
-          <rect
-            className="selection-box"
-            x={-2}
-            y={-2}
-            width={node.w + 4}
-            height={node.h + 4}
-            rx={2}
-          />
           <text
             className="size-hint"
             x={node.w}

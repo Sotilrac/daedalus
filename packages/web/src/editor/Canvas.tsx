@@ -30,6 +30,7 @@ export const Canvas = forwardRef<SVGSVGElement, CanvasProps>(function Canvas(
   const plan = useGraphStore((s) => s.plan);
   const layout = useGraphStore((s) => s.layout);
   const viewOffset = useGraphStore((s) => s.viewOffset);
+  const clearSelection = useGraphStore((s) => s.clearSelection);
 
   const svgRef = useRef<SVGSVGElement | null>(null);
   const routes = useGraphStore((s) => s.routes);
@@ -138,6 +139,13 @@ export const Canvas = forwardRef<SVGSVGElement, CanvasProps>(function Canvas(
         aria-label="Diagram"
         data-theme={layout.viewport.theme}
         style={{ background: plan.palette.paper }}
+        onPointerDown={(e) => {
+          // Click on empty canvas (background or any non-interactive child
+          // that didn't stopPropagation) clears the selection.
+          if (e.target === e.currentTarget || (e.target as Element).classList.contains('grid-bg')) {
+            clearSelection();
+          }
+        }}
       >
         <defs>
           <GridDefs grid={plan.grid} />
