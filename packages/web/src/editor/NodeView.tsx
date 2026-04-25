@@ -232,6 +232,105 @@ function renderShape(node: RenderNode): JSX.Element {
         </g>
       );
     }
+    case 'page': {
+      const fold = Math.max(10, Math.min(w * 0.12, h * 0.18, 24));
+      const body = `M 0 0 L ${w - fold} 0 L ${w} ${fold} L ${w} ${h} L 0 ${h} Z`;
+      const corner = `M ${w - fold} 0 L ${w - fold} ${fold} L ${w} ${fold}`;
+      return (
+        <g>
+          <path d={body} {...common} />
+          <path d={corner} {...common} fill="none" />
+        </g>
+      );
+    }
+    case 'queue': {
+      // Cylinder rotated 90°: open caps on the left and right.
+      const rx = Math.max(4, Math.min(w * 0.06, 14));
+      const body = `M ${rx} 0 L ${w - rx} 0 A ${rx} ${h / 2} 0 0 1 ${w - rx} ${h} L ${rx} ${h} A ${rx} ${h / 2} 0 0 1 ${rx} 0`;
+      return (
+        <g>
+          <path d={body} {...common} />
+          <ellipse cx={w - rx} cy={h / 2} rx={rx} ry={h / 2} {...common} />
+        </g>
+      );
+    }
+    case 'step': {
+      // Chevron arrow: rectangular body with a triangular tip on the right
+      // and a matching notch on the left.
+      const tip = Math.max(10, Math.min(w * 0.12, h * 0.5, 28));
+      const points = `0,0 ${w - tip},0 ${w},${h / 2} ${w - tip},${h} 0,${h} ${tip},${h / 2}`;
+      return <polygon points={points} {...common} />;
+    }
+    case 'callout': {
+      // Speech bubble: rectangle with a pointer hanging off the bottom-left.
+      const tail = Math.max(8, Math.min(h * 0.18, 16));
+      const tailX1 = Math.min(w * 0.18, 32);
+      const tailX2 = tailX1 + Math.min(w * 0.12, 18);
+      const body = `M 0 0 L ${w} 0 L ${w} ${h - tail} L ${tailX2} ${h - tail} L ${tailX1 + (tailX2 - tailX1) / 2} ${h} L ${tailX1} ${h - tail} L 0 ${h - tail} Z`;
+      return <path d={body} {...common} />;
+    }
+    case 'person': {
+      // Stick-figure-ish: a head circle on top, a rounded body below.
+      const headR = Math.min(w * 0.22, h * 0.28, 22);
+      const headCy = headR;
+      const bodyTop = headR * 2 + 2;
+      const bodyH = Math.max(0, h - bodyTop);
+      const bodyR = Math.min(bodyH * 0.4, 18);
+      return (
+        <g>
+          <circle cx={w / 2} cy={headCy} r={headR} {...common} />
+          <rect
+            x={Math.max(0, w / 2 - Math.min(w * 0.45, 60))}
+            y={bodyTop}
+            width={Math.min(w * 0.9, 120)}
+            height={bodyH}
+            rx={bodyR}
+            {...common}
+          />
+        </g>
+      );
+    }
+    case 'cloud': {
+      // Cloud outline traced as a series of arcs along the top with a flat-ish
+      // bottom. Approximation; close enough at typical sizes.
+      const r = Math.min(w, h) * 0.28;
+      const d =
+        `M ${r} ${h} ` +
+        `A ${r} ${r} 0 0 1 0 ${h - r * 1.1} ` +
+        `A ${r * 1.1} ${r * 1.3} 0 0 1 ${r * 0.8} ${h * 0.35} ` +
+        `A ${r * 1.3} ${r * 1.5} 0 0 1 ${w * 0.45} ${h * 0.05} ` +
+        `A ${r * 1.1} ${r * 1.2} 0 0 1 ${w * 0.75} ${h * 0.2} ` +
+        `A ${r * 1.2} ${r * 1.4} 0 0 1 ${w} ${h * 0.55} ` +
+        `A ${r} ${r} 0 0 1 ${w - r * 0.8} ${h} Z`;
+      return <path d={d} {...common} />;
+    }
+    case 'text':
+    case 'code':
+      // Pure-label shapes: no border, no fill. The label text rendered by the
+      // caller is the entire visible content. We still emit an invisible rect
+      // so getBBox / hit-testing for the group has something to hold.
+      return <rect width={w} height={h} fill="transparent" stroke="none" pointerEvents="all" />;
+    case 'class':
+    case 'sql_table': {
+      // Class diagrams and SQL tables in D2 carry sub-fields we don't model
+      // yet; render as a labeled box with a header band so the shape is at
+      // least visually distinct from a plain rectangle.
+      const headerH = Math.min(h * 0.35, 24);
+      return (
+        <g>
+          <rect width={w} height={h} rx={2} {...common} />
+          <line
+            x1={0}
+            y1={headerH}
+            x2={w}
+            y2={headerH}
+            stroke={common.stroke}
+            strokeWidth={common.strokeWidth}
+            opacity={common.opacity}
+          />
+        </g>
+      );
+    }
     default:
       return <rect width={w} height={h} rx={2} {...common} />;
   }

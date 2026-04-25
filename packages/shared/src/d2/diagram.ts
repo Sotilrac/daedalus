@@ -21,6 +21,16 @@ const SHAPE_KINDS = new Set<ShapeKind>([
   'document',
   'stored_data',
   'package',
+  'page',
+  'queue',
+  'step',
+  'callout',
+  'person',
+  'cloud',
+  'text',
+  'code',
+  'class',
+  'sql_table',
 ]);
 
 function asShapeKind(t: string | undefined): ShapeKind {

@@ -15,7 +15,17 @@ export type ShapeKind =
   | 'cylinder'
   | 'document'
   | 'stored_data'
-  | 'package';
+  | 'package'
+  | 'page'
+  | 'queue'
+  | 'step'
+  | 'callout'
+  | 'person'
+  | 'cloud'
+  | 'text'
+  | 'code'
+  | 'class'
+  | 'sql_table';
 
 export interface NodeStyle {
   fill?: string;
