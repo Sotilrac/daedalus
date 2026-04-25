@@ -25,10 +25,19 @@ export function Canvas(): JSX.Element | null {
 
   if (!plan || !layout) return null;
 
-  // SVG canvas grows to fill the host, and grows further if the diagram
-  // exceeds it (so panning still works for diagrams larger than the window).
-  const w = Math.max(host.w, plan.width);
-  const h = Math.max(host.h, plan.height);
+  // Bounding box of the laid-out diagram (plus a margin so nodes don't sit
+  // flush with the canvas edge). The visible canvas is then max(window, box).
+  const margin = layout.grid.size * 4;
+  let maxRight = 0;
+  let maxBottom = 0;
+  for (const node of plan.nodes) {
+    maxRight = Math.max(maxRight, node.x + node.w);
+    maxBottom = Math.max(maxBottom, node.y + node.h);
+  }
+  const contentW = maxRight + margin;
+  const contentH = maxBottom + margin;
+  const w = Math.max(host.w, contentW);
+  const h = Math.max(host.h, contentH);
 
   return (
     <div ref={hostRef} className="canvas-fill">

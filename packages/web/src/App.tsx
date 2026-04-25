@@ -111,19 +111,33 @@ export function App(): JSX.Element {
 
   const onExportSvg = useCallback(async () => {
     if (!svgRef.current) return;
-    const path = await saveDialog({ filters: [{ name: 'SVG', extensions: ['svg'] }] });
+    const defaultPath = exportDefaultPath(rootPath, 'svg');
+    const dialogOpts: Parameters<typeof saveDialog>[0] = {
+      filters: [{ name: 'SVG', extensions: ['svg'] }],
+      defaultPath,
+    };
+    const path = await saveDialog(dialogOpts);
     if (!path) return;
+    const finalPath = ensureExtension(path, 'svg');
     const blob = svgToBlob(svgRef.current);
-    await writeFile(path, new Uint8Array(await blob.arrayBuffer()));
-  }, []);
+    await writeFile(finalPath, new Uint8Array(await blob.arrayBuffer()));
+    rememberExportDir(finalPath);
+  }, [rootPath]);
 
   const onExportPng = useCallback(async () => {
     if (!svgRef.current) return;
-    const path = await saveDialog({ filters: [{ name: 'PNG', extensions: ['png'] }] });
+    const defaultPath = exportDefaultPath(rootPath, 'png');
+    const dialogOpts: Parameters<typeof saveDialog>[0] = {
+      filters: [{ name: 'PNG', extensions: ['png'] }],
+      defaultPath,
+    };
+    const path = await saveDialog(dialogOpts);
     if (!path) return;
+    const finalPath = ensureExtension(path, 'png');
     const blob = await svgToPngBlob(svgRef.current, 2);
-    await writeFile(path, new Uint8Array(await blob.arrayBuffer()));
-  }, []);
+    await writeFile(finalPath, new Uint8Array(await blob.arrayBuffer()));
+    rememberExportDir(finalPath);
+  }, [rootPath]);
 
   return (
     <div className="app" data-theme={layout?.viewport.theme ?? 'blueprint'}>
@@ -187,6 +201,37 @@ export function App(): JSX.Element {
       </main>
     </div>
   );
+}
+
+function folderBasename(path: string | null): string {
+  if (!path) return 'diagram';
+  const m = path.match(/[^/\\]+$/);
+  return m?.[0] ?? 'diagram';
+}
+
+function ensureExtension(path: string, ext: string): string {
+  return path.toLowerCase().endsWith(`.${ext}`) ? path : `${path}.${ext}`;
+}
+
+function dirOf(path: string): string {
+  const idx = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+  return idx >= 0 ? path.slice(0, idx) : path;
+}
+
+const EXPORT_DIR_KEY = 'daedalus.lastExportDir';
+
+function exportDefaultPath(rootPath: string | null, ext: 'svg' | 'png'): string {
+  const dir =
+    (typeof localStorage !== 'undefined' && localStorage.getItem(EXPORT_DIR_KEY)) || rootPath || '';
+  const name = `${folderBasename(rootPath)}.${ext}`;
+  if (!dir) return name;
+  const sep = dir.includes('\\') ? '\\' : '/';
+  return `${dir}${sep}${name}`;
+}
+
+function rememberExportDir(savedPath: string): void {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.setItem(EXPORT_DIR_KEY, dirOf(savedPath));
 }
 
 function CanvasWithRef({
