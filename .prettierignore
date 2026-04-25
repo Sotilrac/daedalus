@@ -7,3 +7,5 @@
 **/gen
 pnpm-lock.yaml
 LICENSE
+# Sidecar files: written by the app; their formatting is the app's concern.
+**/.daedalus.json

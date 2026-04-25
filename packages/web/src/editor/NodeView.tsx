@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { NodeId, RenderNode } from '@daedalus/shared';
 import { useGraphStore } from '../store/graphStore.js';
 import { AnchorControls } from './AnchorControls.js';
+
+const DRAG_THRESHOLD = 3; // px before treating a press as a drag
 
 export function NodeView({ node }: { node: RenderNode }): JSX.Element {
   const moveNodes = useGraphStore((s) => s.moveNodes);
@@ -11,7 +13,11 @@ export function NodeView({ node }: { node: RenderNode }): JSX.Element {
     origins: Record<NodeId, { x: number; y: number }>;
     pointerX: number;
     pointerY: number;
+    wasSelected: boolean;
+    prevSelLen: number;
   } | null>(null);
+  // Tracked outside React state so a moving pointer doesn't churn renders.
+  const movedRef = useRef(false);
   const [resize, setResize] = useState<{
     origW: number;
     origH: number;
@@ -33,34 +39,39 @@ export function NodeView({ node }: { node: RenderNode }): JSX.Element {
         const target = e.currentTarget;
         target.setPointerCapture(e.pointerId);
 
-        // Selection rules:
-        //  - clicking an already-selected node when several are selected
-        //    drops to a single-select on that node (so the resize handle
-        //    appears on the one the user just clicked);
-        //  - clicking an unselected node accumulates it into the selection;
-        //  - clicking the only-selected node is a no-op.
+        // Selection on press: only *grow* the selection here. Demoting a
+        // multi-selection to a single click target is deferred to pointer-up
+        // so dragging an already-selected node moves the whole selection
+        // instead of collapsing it.
         const store = useGraphStore.getState();
         const sel = store.selection;
-        let nextSel: NodeId[];
-        if (sel.includes(node.id)) {
-          nextSel = sel.length > 1 ? [node.id] : sel;
-        } else {
-          nextSel = [...sel, node.id];
-        }
-        if (nextSel !== sel) store.setSelection(nextSel);
+        const wasSelected = sel.includes(node.id);
+        const dragSel = wasSelected ? sel : [...sel, node.id];
+        if (!wasSelected) store.setSelection(dragSel);
 
         const layout = store.layout;
         const origins: Record<NodeId, { x: number; y: number }> = {};
-        for (const id of nextSel) {
+        for (const id of dragSel) {
           const n = layout?.nodes[id];
           if (n) origins[id] = { x: n.x, y: n.y };
         }
-        setDrag({ origins, pointerX: e.clientX, pointerY: e.clientY });
+        movedRef.current = false;
+        setDrag({
+          origins,
+          pointerX: e.clientX,
+          pointerY: e.clientY,
+          wasSelected,
+          prevSelLen: sel.length,
+        });
       }}
       onPointerMove={(e) => {
         if (!drag) return;
         const dx = e.clientX - drag.pointerX;
         const dy = e.clientY - drag.pointerY;
+        if (!movedRef.current) {
+          if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+          movedRef.current = true;
+        }
         const updates = Object.entries(drag.origins).map(([id, o]) => ({
           id,
           x: o.x + dx,
@@ -70,6 +81,11 @@ export function NodeView({ node }: { node: RenderNode }): JSX.Element {
       }}
       onPointerUp={(e) => {
         e.currentTarget.releasePointerCapture(e.pointerId);
+        if (drag && !movedRef.current && drag.wasSelected && drag.prevSelLen > 1) {
+          // True click on a node that was already part of a multi-selection:
+          // collapse to single-select so the resize handle appears here.
+          useGraphStore.getState().selectOnly(node.id);
+        }
         setDrag(null);
       }}
     >

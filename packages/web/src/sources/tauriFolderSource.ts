@@ -93,7 +93,16 @@ function joinPath(...parts: string[]): string {
 }
 
 async function listD2Recursive(root: string, rel: string): Promise<string[]> {
-  const entries = await readDir(joinPath(root, rel));
+  let entries;
+  try {
+    entries = await readDir(joinPath(root, rel));
+  } catch (err) {
+    // Folders the Tauri scope rejects (e.g. .git, .claude, anything outside
+    // the granted directory) throw "forbidden path". Skip them silently so a
+    // single restricted subdirectory doesn't break the whole listing.
+    console.info('[daedalus] skipping unreadable directory', joinPath(root, rel), err);
+    return [];
+  }
   const out: string[] = [];
   for (const e of entries) {
     const sub = joinPath(rel, e.name);
