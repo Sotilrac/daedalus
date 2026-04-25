@@ -106,8 +106,18 @@ export function App(): JSX.Element {
   const onPickFolder = useCallback(async () => {
     const folder = await pickFolderViaTauri();
     if (!folder) return;
+    rememberFolder(folder);
     setSource(new TauriFolderSource(folder));
   }, [setSource]);
+
+  // On first mount, restore the last opened folder if we have one. Errors
+  // (deleted, renamed, no longer accessible) surface as a normal load error.
+  useEffect(() => {
+    const last = recallFolder();
+    if (last) setSource(new TauriFolderSource(last));
+    // Only run once at startup.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onExportSvg = useCallback(async () => {
     if (!svgRef.current) return;
@@ -219,6 +229,17 @@ function dirOf(path: string): string {
 }
 
 const EXPORT_DIR_KEY = 'daedalus.lastExportDir';
+const LAST_FOLDER_KEY = 'daedalus.lastFolder';
+
+function rememberFolder(path: string): void {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.setItem(LAST_FOLDER_KEY, path);
+}
+
+function recallFolder(): string | null {
+  if (typeof localStorage === 'undefined') return null;
+  return localStorage.getItem(LAST_FOLDER_KEY);
+}
 
 function exportDefaultPath(rootPath: string | null, ext: 'svg' | 'png'): string {
   const dir =

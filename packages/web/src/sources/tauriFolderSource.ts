@@ -11,31 +11,42 @@ export async function pickFolderViaTauri(): Promise<string | null> {
 
 export class TauriFolderSource implements DataSource {
   readonly kind = 'tauri-folder';
+  // The Rust `watch_folder` command also grants fs-scope access to the
+  // folder. We kick it off in the constructor and await it before any read,
+  // so this source works whether the user picked the folder fresh (already
+  // scoped) or we auto-restored from a saved path on startup.
+  private readonly ready: Promise<unknown>;
 
-  constructor(public readonly rootPath: string) {}
+  constructor(public readonly rootPath: string) {
+    this.ready = invoke('watch_folder', { path: rootPath }).catch(() => undefined);
+  }
 
   async listD2Files(): Promise<string[]> {
+    await this.ready;
     return listD2Recursive(this.rootPath, '');
   }
 
   async readFile(path: string): Promise<string> {
+    await this.ready;
     return readTextFile(joinPath(this.rootPath, path));
   }
 
   async readSidecar(): Promise<string | null> {
+    await this.ready;
     const target = joinPath(this.rootPath, SIDECAR_FILENAME);
     if (!(await exists(target))) return null;
     return readTextFile(target);
   }
 
   async writeSidecar(text: string): Promise<void> {
+    await this.ready;
     await writeTextFile(joinPath(this.rootPath, SIDECAR_FILENAME), text);
   }
 
   subscribe(listener: (changes: FolderChange[]) => void): () => void {
     let active = true;
     let unlisten: UnlistenFn | null = null;
-    void invoke('watch_folder', { path: this.rootPath })
+    void this.ready
       .then(() =>
         listen<FolderChange[]>('daedalus://folder-changed', (event) => {
           if (active) listener(event.payload);

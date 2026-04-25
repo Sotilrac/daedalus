@@ -4,8 +4,8 @@
       "version": 1,
       "grid": {
         "size": 16,
-        "cols": 94,
-        "rows": 96
+        "cols": 80,
+        "rows": 88
       },
       "viewport": {
         "zoom": 1,
@@ -15,56 +15,56 @@
       },
       "nodes": {
         "user": {
-          "x": 64,
-          "y": 32,
+          "x": 80,
+          "y": 16,
           "w": 48,
           "h": 80,
           "connections": {
             "top": [],
-            "right": ["user->api#0"],
-            "bottom": [],
+            "right": [],
+            "bottom": ["user->api#0"],
             "left": []
           }
         },
         "api": {
-          "x": 272,
-          "y": 32,
+          "x": 160,
+          "y": 160,
           "w": 144,
           "h": 80,
           "connections": {
-            "top": [],
+            "top": ["user->api#0"],
             "right": ["api->queue#0"],
             "bottom": ["api->db#0", "api->cache#0"],
-            "left": ["user->api#0"]
+            "left": []
           }
         },
         "worker": {
-          "x": 624,
-          "y": 272,
+          "x": 608,
+          "y": 304,
           "w": 192,
           "h": 80,
           "connections": {
-            "top": ["queue->worker#0"],
-            "right": [],
+            "top": [],
+            "right": ["queue->worker#0"],
             "bottom": ["worker->db#0"],
             "left": ["worker->cache#0"]
           }
         },
         "cache": {
-          "x": 432,
-          "y": 192,
+          "x": 304,
+          "y": 320,
           "w": 96,
           "h": 80,
           "connections": {
             "top": ["api->cache#0"],
             "right": ["worker->cache#0"],
-            "bottom": ["cache->db#0"],
-            "left": []
+            "bottom": [],
+            "left": ["cache->db#0"]
           }
         },
         "db": {
-          "x": 416,
-          "y": 384,
+          "x": 176,
+          "y": 560,
           "w": 128,
           "h": 128,
           "connections": {
@@ -75,22 +75,22 @@
           }
         },
         "queue": {
-          "x": 624,
-          "y": 32,
+          "x": 608,
+          "y": 160,
           "w": 176,
           "h": 80,
           "connections": {
             "top": [],
-            "right": [],
-            "bottom": ["queue->worker#0"],
+            "right": ["queue->worker#0"],
+            "bottom": [],
             "left": ["api->queue#0"]
           }
         }
       },
       "edges": {
         "user->api#0": {
-          "fromSide": "right",
-          "toSide": "left"
+          "fromSide": "bottom",
+          "toSide": "top"
         },
         "api->cache#0": {
           "fromSide": "bottom",
@@ -101,7 +101,7 @@
           "toSide": "top"
         },
         "cache->db#0": {
-          "fromSide": "bottom",
+          "fromSide": "left",
           "toSide": "top"
         },
         "api->queue#0": {
@@ -109,8 +109,8 @@
           "toSide": "left"
         },
         "queue->worker#0": {
-          "fromSide": "bottom",
-          "toSide": "top"
+          "fromSide": "right",
+          "toSide": "right"
         },
         "worker->db#0": {
           "fromSide": "bottom",

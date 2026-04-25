@@ -5,6 +5,9 @@ coverage/
 .pnpm-store/
 *.log
 
+# Synced from libavoid-js dist by scripts/sync-wasm.mjs.
+packages/web/public/libavoid.wasm
+
 # Tauri
 packages/desktop/src-tauri/target/
 packages/desktop/src-tauri/gen/
