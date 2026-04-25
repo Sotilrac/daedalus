@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import {
   DEFAULT_GRID,
   DEFAULT_VIEWPORT,
+  applySavedLayout,
   buildLayoutFromRaw,
   buildRenderPlan,
   diagramToModel,
@@ -61,10 +62,17 @@ export const useGraphStore = create<GraphState>((set, get) => ({
 
     let layout: Layout = fresh;
     let needsRelayout = false;
-    if (prevModel && prevLayout) {
+    if (prevLayout && prevModel) {
+      // Mid-session reload: full diff, label-only changes are minor.
       const reconciled = reconcileLayout(prevLayout, prevModel, model);
       layout = reconciled.layout;
       needsRelayout = reconciled.needsRelayout;
+    } else if (prevLayout) {
+      // Cold start: we don't have the previous model, but the sidecar is the
+      // user's source of truth — apply it and only relayout new ids.
+      const applied = applySavedLayout(prevLayout, model);
+      layout = applied.layout;
+      needsRelayout = applied.needsRelayout;
     }
 
     const routes = await routeEdges(model, layout);

@@ -8,6 +8,43 @@ export interface ReconcileResult {
   needsRelayout: boolean;
 }
 
+export interface ApplyResult {
+  layout: Layout;
+  needsRelayout: boolean;
+}
+
+// Apply a saved Layout to a new Model when we have no prior model snapshot
+// (e.g. a fresh folder open). Reuses positions for kept ids, drops removed
+// ids, and lists ids that have no saved entry as `unplaced`.
+export function applySavedLayout(saved: Layout, model: Model): ApplyResult {
+  const keptNodeIds = new Set(Object.keys(model.nodes));
+  const keptEdgeIds = new Set(Object.keys(model.edges));
+
+  const nodes: Record<NodeId, Layout['nodes'][string]> = {};
+  for (const id of keptNodeIds) {
+    const prev = saved.nodes[id];
+    if (prev) {
+      const pruned: Record<Side, EdgeId[]> = emptyConnections();
+      for (const side of SIDES) {
+        pruned[side] = prev.connections[side].filter((eid) => keptEdgeIds.has(eid));
+      }
+      nodes[id] = { ...prev, connections: pruned };
+    }
+  }
+
+  const edges: Record<EdgeId, Layout['edges'][string]> = {};
+  for (const id of keptEdgeIds) {
+    const prev = saved.edges[id];
+    if (prev) edges[id] = prev;
+  }
+
+  const unplaced = [...keptNodeIds].filter((id) => !(id in nodes));
+  return {
+    layout: { ...saved, nodes, edges, unplaced },
+    needsRelayout: unplaced.length > 0,
+  };
+}
+
 // Reconcile a saved Layout against a new Model. Reuses positions for kept ids;
 // drops layout entries for removed ids; lists new ids in `unplaced`. Edge ids
 // that vanish are stripped from per-side ordering.
