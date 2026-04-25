@@ -1,0 +1,30 @@
+{
+  "name": "@daedalus/shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./d2": "./src/d2/index.ts",
+    "./model": "./src/model/index.ts",
+    "./layout": "./src/layout/index.ts",
+    "./routing": "./src/routing/index.ts",
+    "./sidecar": "./src/sidecar/index.ts",
+    "./render": "./src/render/index.ts",
+    "./source": "./src/source/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src tests"
+  },
+  "dependencies": {
+    "@terrastruct/d2": "^0.1.33",
+    "ajv": "^8.17.1",
+    "libavoid-js": "^0.4.0"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8"
+  }
+}

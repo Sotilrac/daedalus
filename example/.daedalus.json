@@ -1,0 +1,107 @@
+{
+  "entries": {
+    "index.d2": {
+      "version": 1,
+      "grid": {
+        "size": 16,
+        "cols": 80,
+        "rows": 50
+      },
+      "viewport": {
+        "zoom": 1,
+        "panX": 0,
+        "panY": 0,
+        "theme": "blueprint"
+      },
+      "nodes": {
+        "api": {
+          "x": 32,
+          "y": 16,
+          "w": 80,
+          "h": 80,
+          "connections": {
+            "top": [],
+            "right": [],
+            "bottom": [
+              "api->db#0",
+              "api->cache#0"
+            ],
+            "left": []
+          }
+        },
+        "db": {
+          "x": 80,
+          "y": 496,
+          "w": 128,
+          "h": 128,
+          "connections": {
+            "top": [
+              "api->db#0",
+              "cache->db#0",
+              "worker->db#0"
+            ],
+            "right": [],
+            "bottom": [],
+            "left": []
+          }
+        },
+        "cache": {
+          "x": 80,
+          "y": 256,
+          "w": 112,
+          "h": 80,
+          "connections": {
+            "top": [
+              "api->cache#0",
+              "worker->cache#0"
+            ],
+            "right": [],
+            "bottom": [
+              "cache->db#0"
+            ],
+            "left": []
+          }
+        },
+        "worker": {
+          "x": 160,
+          "y": 16,
+          "w": 112,
+          "h": 80,
+          "connections": {
+            "top": [],
+            "right": [],
+            "bottom": [
+              "worker->db#0"
+            ],
+            "left": [
+              "worker->cache#0"
+            ]
+          }
+        }
+      },
+      "edges": {
+        "api->db#0": {
+          "fromSide": "bottom",
+          "toSide": "top"
+        },
+        "api->cache#0": {
+          "fromSide": "bottom",
+          "toSide": "top"
+        },
+        "cache->db#0": {
+          "fromSide": "bottom",
+          "toSide": "top"
+        },
+        "worker->db#0": {
+          "fromSide": "bottom",
+          "toSide": "top"
+        },
+        "worker->cache#0": {
+          "fromSide": "left",
+          "toSide": "top"
+        }
+      },
+      "unplaced": []
+    }
+  }
+}

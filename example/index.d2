@@ -1,0 +1,7 @@
+...@nodes
+
+api -> db: query
+api -> cache: lookup
+cache -> db: miss
+worker -> db: write
+worker -> cache: invalidate

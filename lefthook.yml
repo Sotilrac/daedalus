@@ -1,0 +1,19 @@
+pre-commit:
+  parallel: true
+  commands:
+    prettier:
+      glob: '*.{ts,tsx,js,jsx,css,json,yaml,yml,md}'
+      run: 'pnpm exec prettier --check {staged_files}'
+    eslint:
+      glob: '*.{ts,tsx,js,jsx}'
+      run: 'pnpm exec eslint {staged_files}'
+    stylelint:
+      glob: '*.css'
+      run: 'pnpm exec stylelint {staged_files}'
+    editorconfig:
+      run: 'pnpm exec editorconfig-checker'
+
+pre-push:
+  commands:
+    typecheck: { run: 'pnpm typecheck' }
+    test: { run: 'pnpm test' }

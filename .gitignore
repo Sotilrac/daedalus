@@ -1,0 +1,16 @@
+node_modules/
+dist/
+coverage/
+.vite/
+.pnpm-store/
+*.log
+
+# Tauri
+packages/desktop/src-tauri/target/
+packages/desktop/src-tauri/gen/
+
+# Editor
+.DS_Store
+.idea/
+.vscode/
+!.vscode/extensions.json

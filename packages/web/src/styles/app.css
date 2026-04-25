@@ -1,0 +1,167 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-feature-settings: 'tnum' 1;
+}
+
+body {
+  overflow: hidden;
+}
+
+button {
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--ink-muted);
+  border-radius: var(--radius);
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+button:disabled {
+  color: var(--ink-muted);
+  border-color: var(--ink-muted);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.app {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100%;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--ink-muted);
+  background: var(--paper-sunk);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.toolbar .title {
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.toolbar .spacer {
+  flex: 1;
+}
+
+.toolbar .path {
+  color: var(--ink-muted);
+  max-width: 50ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.canvas-host {
+  position: relative;
+  overflow: auto;
+  background: var(--paper);
+}
+
+.canvas-host svg {
+  display: block;
+}
+
+.banner {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--paper-sunk);
+  border: 1px solid var(--negative);
+  color: var(--negative);
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  border-radius: var(--radius);
+  max-width: 80ch;
+  z-index: 10;
+}
+
+.banner.warning {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.empty-state {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  text-align: center;
+  font-family: var(--font-mono);
+  color: var(--ink-muted);
+}
+
+.empty-state h1 {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink);
+  margin-bottom: 8px;
+  font-size: 28px;
+}
+
+.empty-state p {
+  margin: 0 0 16px 0;
+  max-width: 50ch;
+}
+
+.node {
+  cursor: grab;
+}
+
+.node.dragging {
+  cursor: grabbing;
+}
+
+.node text {
+  user-select: none;
+  pointer-events: none;
+  font-family: var(--font-sans);
+  font-size: 12px;
+}
+
+.anchor {
+  cursor: pointer;
+}
+
+.anchor.ghost {
+  opacity: 0.6;
+}
+
+.selection-box {
+  fill: none;
+  stroke: var(--mark);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  pointer-events: none;
+}

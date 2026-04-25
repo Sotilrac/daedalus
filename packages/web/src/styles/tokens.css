@@ -1,0 +1,27 @@
+:root {
+  --paper: #0d3b66;
+  --paper-sunk: #0a2f54;
+  --ink: #f4f1de;
+  --ink-muted: #7aa6cd;
+  --accent: #fec601;
+  --mark: #fec601;
+  --positive: #a3d9b1;
+  --negative: #ef8b6f;
+  --grid-dot: #7aa6cd;
+  --shadow-rgb: 0 0 0;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --radius: 2px;
+}
+
+[data-theme='paper'] {
+  --paper: #faf7f2;
+  --paper-sunk: #efeae0;
+  --ink: #1a2238;
+  --ink-muted: #5a6378;
+  --accent: #c2410c;
+  --mark: #c2410c;
+  --positive: #3f6d4e;
+  --negative: #8c3a2e;
+  --grid-dot: #a8b0bf;
+}

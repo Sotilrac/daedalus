@@ -1,0 +1,26 @@
+[package]
+name = "daedalus"
+version = "0.1.0"
+description = "D2-driven diagram editor"
+authors = ["Carlos Asmat <casmat@dephy.com>"]
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+name = "daedalus_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.0.0", features = [] }
+
+[dependencies]
+tauri = { version = "2.1.0", features = [] }
+tauri-plugin-fs = "2.0.3"
+tauri-plugin-dialog = "2.0.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+notify = "7.0"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

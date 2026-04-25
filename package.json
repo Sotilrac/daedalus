@@ -1,0 +1,39 @@
+{
+  "name": "daedalus",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "D2-driven diagram editor with snap-to-grid layout, orthogonal routing, and a blueprint theme.",
+  "author": "Carlos Asmat <casmat@dephy.com>",
+  "license": "MIT",
+  "packageManager": "pnpm@10.33.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm -F @daedalus/desktop dev",
+    "build": "pnpm -r --filter './packages/*' build",
+    "test": "pnpm -r --filter './packages/*' test",
+    "typecheck": "pnpm -r --filter './packages/*' typecheck",
+    "lint": "pnpm -r --filter './packages/*' lint && pnpm run lint:prettier && pnpm run lint:stylelint",
+    "lint:prettier": "prettier --check .",
+    "lint:stylelint": "stylelint \"packages/**/*.css\" --allow-empty-input",
+    "format": "prettier --write . && pnpm -r --filter './packages/*' lint --fix"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.18.0",
+    "@types/node": "^22.10.0",
+    "editorconfig-checker": "^6.0.0",
+    "eslint": "^9.18.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.3",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "lefthook": "^1.10.0",
+    "prettier": "^3.4.0",
+    "stylelint": "^16.13.0",
+    "stylelint-config-standard": "^36.0.1",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.20.0"
+  }
+}
