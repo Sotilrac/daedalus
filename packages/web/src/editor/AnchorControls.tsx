@@ -54,10 +54,11 @@ export function AnchorControls({ nodeId, width, height }: Props): JSX.Element {
           );
         });
       })}
-      {active && renderGhosts(active, width, height, async (offset) => {
-        await swapAnchor(nodeId, active.side, active.edgeId, offset);
-        setActive(null);
-      })}
+      {active &&
+        renderGhosts(active, width, height, async (offset) => {
+          await swapAnchor(nodeId, active.side, active.edgeId, offset);
+          setActive(null);
+        })}
     </g>
   );
 }
@@ -71,7 +72,13 @@ function renderGhosts(
   const ghosts: JSX.Element[] = [];
   for (let i = 0; i < active.count; i += 1) {
     if (i === active.index) continue;
-    const { x, y } = localPin({ side: active.side, index: i, count: active.count, w: width, h: height });
+    const { x, y } = localPin({
+      side: active.side,
+      index: i,
+      count: active.count,
+      w: width,
+      h: height,
+    });
     const offset = i - active.index;
     ghosts.push(
       <circle
@@ -94,7 +101,10 @@ function renderGhosts(
   return ghosts;
 }
 
-function localPin(opts: { side: Side; index: number; count: number; w: number; h: number }): { x: number; y: number } {
+function localPin(opts: { side: Side; index: number; count: number; w: number; h: number }): {
+  x: number;
+  y: number;
+} {
   const t = (opts.index + 1) / (opts.count + 1);
   switch (opts.side) {
     case 'top':

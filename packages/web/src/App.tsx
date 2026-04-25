@@ -6,7 +6,13 @@ import { readAllD2 } from './sources/loadFolder.js';
 import { Canvas } from './editor/Canvas.js';
 import { ErrorOverlay } from './editor/ErrorOverlay.js';
 import { normalizeD2Error } from '@daedalus/shared/d2';
-import { emptySidecar, parseSidecar, serializeSidecar, setEntry, getEntry } from '@daedalus/shared/sidecar';
+import {
+  emptySidecar,
+  parseSidecar,
+  serializeSidecar,
+  setEntry,
+  getEntry,
+} from '@daedalus/shared/sidecar';
 import { svgToBlob } from './export/svg.js';
 import { svgToPngBlob } from './export/png.js';
 import { writeFile } from '@tauri-apps/plugin-fs';
@@ -23,49 +29,79 @@ export function App(): JSX.Element {
   const setLoading = useSourceStore((s) => s.setLoading);
 
   const layout = useGraphStore((s) => s.layout);
-  const model = useGraphStore((s) => s.model);
   const needsRelayout = useGraphStore((s) => s.needsRelayout);
   const setTheme = useGraphStore((s) => s.setTheme);
-  const loadFromCompile = useGraphStore((s) => s.loadFromCompile);
 
   const svgRef = useRef<SVGSVGElement | null>(null);
+  // The most recent layout we wrote; used to skip the next persist if state
+  // came back unchanged (e.g. just after a sidecar read).
+  const lastPersistedRef = useRef<unknown>(null);
 
-  const reload = useCallback(async () => {
-    if (!source) return;
-    setLoading(true);
-    try {
-      const files = await readAllD2(source);
-      setFiles(files);
-      const sidecarText = await source.readSidecar();
-      const sidecar = sidecarText ? parseSidecar(sidecarText) : emptySidecar();
-      const prevLayout = getEntry(sidecar, entryPath) ?? null;
-      await loadFromCompile({
-        files,
-        inputPath: entryPath,
-        prevModel: model,
-        prevLayout,
-      });
-      setErrors([]);
-      const next = useGraphStore.getState().layout;
-      if (next) {
-        const updated = setEntry(sidecar, entryPath, next);
-        await source.writeSidecar(serializeSidecar(updated));
-      }
-    } catch (err) {
-      setErrors(normalizeD2Error(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [source, entryPath, setFiles, setErrors, setLoading, loadFromCompile, model]);
-
+  // Load D2 files + sidecar, recompile, reconcile. Reads the latest model from
+  // the store at call time so we don't keep regenerating the callback.
   useEffect(() => {
-    if (!source) return;
-    void reload();
-    const off = source.subscribe(() => {
-      void reload();
+    if (!source) return undefined;
+    let cancelled = false;
+
+    const load = async () => {
+      setLoading(true);
+      try {
+        const files = await readAllD2(source);
+        if (cancelled) return;
+        setFiles(files);
+        const sidecarText = await source.readSidecar();
+        if (cancelled) return;
+        const sidecar = sidecarText ? parseSidecar(sidecarText) : emptySidecar();
+        const prevLayout = getEntry(sidecar, entryPath) ?? null;
+        const prevModel = useGraphStore.getState().model;
+        await useGraphStore.getState().loadFromCompile({
+          files,
+          inputPath: entryPath,
+          prevModel,
+          prevLayout,
+        });
+        if (cancelled) return;
+        setErrors([]);
+        // Mark whatever the store now holds as already persisted; don't write
+        // it back unless the user touches it.
+        lastPersistedRef.current = useGraphStore.getState().layout;
+      } catch (err) {
+        if (!cancelled) setErrors(normalizeD2Error(err));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    void load();
+    const off = source.subscribe((changes) => {
+      if (changes.length === 0) return;
+      void load();
     });
-    return off;
-  }, [source, reload]);
+    return () => {
+      cancelled = true;
+      off();
+    };
+  }, [source, entryPath, setFiles, setErrors, setLoading]);
+
+  // Debounced sidecar persist whenever the user changes layout in the editor.
+  useEffect(() => {
+    if (!source || !layout) return undefined;
+    if (lastPersistedRef.current === layout) return undefined;
+    const id = setTimeout(() => {
+      void (async () => {
+        try {
+          const existing = await source.readSidecar();
+          const sidecar = existing ? parseSidecar(existing) : emptySidecar();
+          const next = setEntry(sidecar, entryPath, layout);
+          await source.writeSidecar(serializeSidecar(next));
+          lastPersistedRef.current = layout;
+        } catch (err) {
+          setErrors(normalizeD2Error(err));
+        }
+      })();
+    }, 200);
+    return () => clearTimeout(id);
+  }, [layout, source, entryPath, setErrors]);
 
   const onPickFolder = useCallback(async () => {
     const folder = await pickFolderViaTauri();
@@ -97,10 +133,24 @@ export function App(): JSX.Element {
         <span className="spacer" />
         {needsRelayout && <span style={{ color: 'var(--accent)' }}>Layout out of sync</span>}
         <button onClick={() => void onPickFolder()}>Open folder</button>
-        <button onClick={() => void reload()} disabled={!source}>
+        <button
+          onClick={() => {
+            // Force a re-compile by nudging the source identity. Cheaper than a
+            // dedicated relayout button: the existing load path already handles
+            // structural diffs and the unplaced tray.
+            const current = source;
+            if (!current) return;
+            setSource(null);
+            queueMicrotask(() => setSource(current));
+          }}
+          disabled={!source}
+        >
           Relayout
         </button>
-        <button onClick={() => setTheme(layout?.viewport.theme === 'paper' ? 'blueprint' : 'paper')} disabled={!layout}>
+        <button
+          onClick={() => setTheme(layout?.viewport.theme === 'paper' ? 'blueprint' : 'paper')}
+          disabled={!layout}
+        >
           Theme
         </button>
         <button onClick={() => void onExportSvg()} disabled={!layout}>
@@ -125,7 +175,11 @@ export function App(): JSX.Element {
   );
 }
 
-function CanvasWithRef({ setRef }: { setRef: (el: SVGSVGElement | null) => void }): JSX.Element | null {
+function CanvasWithRef({
+  setRef,
+}: {
+  setRef: (el: SVGSVGElement | null) => void;
+}): JSX.Element | null {
   const plan = useGraphStore((s) => s.plan);
   if (!plan) return null;
   return (

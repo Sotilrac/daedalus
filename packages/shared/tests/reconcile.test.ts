@@ -18,8 +18,20 @@ function baseLayout(): Layout {
     grid: { size: 16, cols: 80, rows: 50 },
     viewport: { zoom: 1, panX: 0, panY: 0, theme: 'blueprint' },
     nodes: {
-      a: { x: 0, y: 0, w: 96, h: 64, connections: { top: [], right: ['a->b#0'], bottom: [], left: [] } },
-      b: { x: 256, y: 0, w: 96, h: 64, connections: { top: [], right: [], bottom: [], left: ['a->b#0'] } },
+      a: {
+        x: 0,
+        y: 0,
+        w: 96,
+        h: 64,
+        connections: { top: [], right: ['a->b#0'], bottom: [], left: [] },
+      },
+      b: {
+        x: 256,
+        y: 0,
+        w: 96,
+        h: 64,
+        connections: { top: [], right: [], bottom: [], left: ['a->b#0'] },
+      },
     },
     edges: { 'a->b#0': { fromSide: 'right', toSide: 'left' } },
     unplaced: [],

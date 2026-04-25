@@ -13,7 +13,9 @@ export function parseSidecar(text: string): SidecarFile {
   const json = JSON.parse(text) as unknown;
   const migrated = migrate(json);
   if (!validateSidecar(migrated)) {
-    const msgs = (validateSidecar.errors ?? []).map((e) => `${e.instancePath} ${e.message}`).join(', ');
+    const msgs = (validateSidecar.errors ?? [])
+      .map((e) => `${e.instancePath} ${e.message}`)
+      .join(', ');
     throw new Error(`Invalid sidecar: ${msgs}`);
   }
   return migrated;

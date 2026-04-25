@@ -78,7 +78,11 @@ export interface RouteOptions {
   useFallback?: boolean;
 }
 
-export async function routeEdges(model: Model, layout: Layout, opts: RouteOptions = {}): Promise<EdgeRoutes> {
+export async function routeEdges(
+  model: Model,
+  layout: Layout,
+  opts: RouteOptions = {},
+): Promise<EdgeRoutes> {
   const edgePins = collectEdgePins(model, layout);
   if (opts.useFallback) {
     return fallbackRoutes(edgePins);
@@ -86,7 +90,10 @@ export async function routeEdges(model: Model, layout: Layout, opts: RouteOption
   try {
     const router = await getRouter();
     return router.route({
-      shapes: Object.entries(layout.nodes).map(([id, n]) => ({ id, box: { x: n.x, y: n.y, w: n.w, h: n.h } })),
+      shapes: Object.entries(layout.nodes).map(([id, n]) => ({
+        id,
+        box: { x: n.x, y: n.y, w: n.w, h: n.h },
+      })),
       edges: edgePins,
     });
   } catch {
@@ -127,7 +134,11 @@ export function collectEdgePins(model: Model, layout: Layout): PinnedEdge[] {
   return result;
 }
 
-function ensureContainsEdge(connections: Record<Side, EdgeId[]>, preferred: Side, edgeId: EdgeId): Side {
+function ensureContainsEdge(
+  connections: Record<Side, EdgeId[]>,
+  preferred: Side,
+  edgeId: EdgeId,
+): Side {
   if (connections[preferred].includes(edgeId)) return preferred;
   for (const side of SIDES) {
     if (connections[side].includes(edgeId)) return side;

@@ -1,4 +1,11 @@
-import type { Model, ModelEdge, ModelNode, NodeStyle, EdgeStyle, ShapeKind } from '../model/types.js';
+import type {
+  Model,
+  ModelEdge,
+  ModelNode,
+  NodeStyle,
+  EdgeStyle,
+  ShapeKind,
+} from '../model/types.js';
 import { edgeId } from '../model/ids.js';
 import type { D2Diagram, D2Shape, D2Connection, D2Style } from './types.js';
 

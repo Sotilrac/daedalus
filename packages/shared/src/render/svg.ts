@@ -1,6 +1,12 @@
 import type { EdgeRoutes, Layout, Model, Point, ShapeKind } from '../model/types.js';
 import { gridPattern } from './grid.js';
-import { resolveEdgeStyle, resolveNodeStyle, themes, type ThemeName, type ThemePalette } from './theme.js';
+import {
+  resolveEdgeStyle,
+  resolveNodeStyle,
+  themes,
+  type ThemeName,
+  type ThemePalette,
+} from './theme.js';
 
 // Pure-data render plan that the web layer turns into JSX. Keeping it pure lets
 // us reuse the exact same plan for SVG export, snapshot tests, and the

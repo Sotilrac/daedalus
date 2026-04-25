@@ -31,7 +31,11 @@ export interface CompileInput {
   layout?: 'dagre' | 'elk';
 }
 
-export async function compileD2({ files, inputPath, layout = 'elk' }: CompileInput): Promise<CompileOutcome> {
+export async function compileD2({
+  files,
+  inputPath,
+  layout = 'elk',
+}: CompileInput): Promise<CompileOutcome> {
   const d2 = await getD2();
   try {
     const result = await d2.compile({

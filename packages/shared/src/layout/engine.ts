@@ -1,4 +1,12 @@
-import type { Layout, Model, NodeLayout, EdgeId, NodeId, GridConfig, Side } from '../model/types.js';
+import type {
+  Layout,
+  Model,
+  NodeLayout,
+  EdgeId,
+  NodeId,
+  GridConfig,
+  Side,
+} from '../model/types.js';
 import { emptyConnections, SIDES } from '../model/types.js';
 import { snap, snapUp, clampToGrid } from './snap.js';
 import { classifySide, sideSortKey, type BoundingBox } from './sides.js';
@@ -85,7 +93,10 @@ export function snapAndAssignSides(raw: RawLayout, opts: SnapLayoutOptions): Sna
     if (!srcBox || !dstBox) continue;
 
     const first = e.route[0] ?? { x: srcBox.x + srcBox.w / 2, y: srcBox.y + srcBox.h / 2 };
-    const last = e.route[e.route.length - 1] ?? { x: dstBox.x + dstBox.w / 2, y: dstBox.y + dstBox.h / 2 };
+    const last = e.route[e.route.length - 1] ?? {
+      x: dstBox.x + dstBox.w / 2,
+      y: dstBox.y + dstBox.h / 2,
+    };
 
     const fromSide = classifySide(srcBox, first);
     const toSide = classifySide(dstBox, last);

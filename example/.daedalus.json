@@ -22,10 +22,7 @@
           "connections": {
             "top": [],
             "right": [],
-            "bottom": [
-              "api->db#0",
-              "api->cache#0"
-            ],
+            "bottom": ["api->db#0", "api->cache#0"],
             "left": []
           }
         },
@@ -35,47 +32,34 @@
           "w": 128,
           "h": 128,
           "connections": {
-            "top": [
-              "api->db#0",
-              "cache->db#0",
-              "worker->db#0"
-            ],
+            "top": ["api->db#0", "cache->db#0", "worker->db#0"],
             "right": [],
             "bottom": [],
             "left": []
           }
         },
         "cache": {
-          "x": 80,
-          "y": 256,
+          "x": 400,
+          "y": 208,
           "w": 112,
           "h": 80,
           "connections": {
-            "top": [
-              "api->cache#0",
-              "worker->cache#0"
-            ],
+            "top": ["api->cache#0", "worker->cache#0"],
             "right": [],
-            "bottom": [
-              "cache->db#0"
-            ],
+            "bottom": ["cache->db#0"],
             "left": []
           }
         },
         "worker": {
-          "x": 160,
-          "y": 16,
+          "x": 848,
+          "y": 288,
           "w": 112,
           "h": 80,
           "connections": {
             "top": [],
             "right": [],
-            "bottom": [
-              "worker->db#0"
-            ],
-            "left": [
-              "worker->cache#0"
-            ]
+            "bottom": ["worker->db#0"],
+            "left": ["worker->cache#0"]
           }
         }
       },

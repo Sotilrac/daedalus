@@ -29,7 +29,8 @@ export function diffModels(prev: Model, next: Model): ModelDiff {
   const addedEdges = [...nextEdges].filter((id) => !prevEdges.has(id));
   const removedEdges = [...prevEdges].filter((id) => !nextEdges.has(id));
 
-  let structural = addedNodes.length + removedNodes.length + addedEdges.length + removedEdges.length > 0;
+  let structural =
+    addedNodes.length + removedNodes.length + addedEdges.length + removedEdges.length > 0;
 
   if (!structural) {
     for (const id of nextNodes) {

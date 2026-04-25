@@ -21,7 +21,10 @@ export async function svgToPngBlob(svg: SVGSVGElement, scale = 2): Promise<Blob>
     ctx.scale(scale, scale);
     ctx.drawImage(img, 0, 0, w, h);
     return await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Canvas toBlob failed'))), 'image/png');
+      canvas.toBlob(
+        (blob) => (blob ? resolve(blob) : reject(new Error('Canvas toBlob failed'))),
+        'image/png',
+      );
     });
   } finally {
     URL.revokeObjectURL(url);

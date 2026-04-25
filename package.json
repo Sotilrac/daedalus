@@ -17,7 +17,7 @@
     "typecheck": "pnpm -r --filter './packages/*' typecheck",
     "lint": "pnpm -r --filter './packages/*' lint && pnpm run lint:prettier && pnpm run lint:stylelint",
     "lint:prettier": "prettier --check .",
-    "lint:stylelint": "stylelint \"packages/**/*.css\" --allow-empty-input",
+    "lint:stylelint": "stylelint \"packages/**/*.css\" --allow-empty-input --ignore-pattern \"**/dist/**\" --ignore-pattern \"**/node_modules/**\"",
     "format": "prettier --write . && pnpm -r --filter './packages/*' lint --fix"
   },
   "devDependencies": {

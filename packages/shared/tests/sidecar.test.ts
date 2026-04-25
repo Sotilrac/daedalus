@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { emptySidecar, parseSidecar, serializeSidecar, setEntry, getEntry } from '../src/sidecar/io.js';
+import {
+  emptySidecar,
+  parseSidecar,
+  serializeSidecar,
+  setEntry,
+  getEntry,
+} from '../src/sidecar/io.js';
 import type { Layout } from '../src/model/types.js';
 
 const layout: Layout = {

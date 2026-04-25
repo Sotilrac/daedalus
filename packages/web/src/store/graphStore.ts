@@ -116,7 +116,10 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     const swapped = swapAt(list, idx, offset);
     const nextLayout: Layout = {
       ...layout,
-      nodes: { ...layout.nodes, [node]: { ...n, connections: { ...n.connections, [side]: swapped } } },
+      nodes: {
+        ...layout.nodes,
+        [node]: { ...n, connections: { ...n.connections, [side]: swapped } },
+      },
     };
     const routes = await routeEdges(model, nextLayout);
     const plan = buildRenderPlan({ model, layout: nextLayout, routes });

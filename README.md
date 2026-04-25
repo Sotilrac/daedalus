@@ -49,27 +49,27 @@ make install-hooks
 make dev          # launches Vite + Tauri
 ```
 
-| Target          | Command          |
-| --------------- | ---------------- |
-| Install deps    | `make install`   |
-| Dev (Tauri)     | `make dev`       |
-| Build           | `make build`     |
-| Test            | `make test`      |
-| Typecheck       | `make typecheck` |
-| Lint            | `make lint`      |
-| Format          | `make format`    |
+| Target       | Command          |
+| ------------ | ---------------- |
+| Install deps | `make install`   |
+| Dev (Tauri)  | `make dev`       |
+| Build        | `make build`     |
+| Test         | `make test`      |
+| Typecheck    | `make typecheck` |
+| Lint         | `make lint`      |
+| Format       | `make format`    |
 
 ## Key dependencies
 
-| Package              | Purpose                                          |
-| -------------------- | ------------------------------------------------ |
-| `@terrastruct/d2`    | D2 parsing + initial ELK layout (WASM)           |
-| `libavoid-js`        | Orthogonal connector routing (WASM)              |
-| `react`, `zustand`   | UI + state                                       |
-| `ajv`                | Sidecar JSON schema validation                   |
-| `@tauri-apps/api`    | Webview ↔ Rust bridge                            |
-| `tauri-plugin-fs`    | Folder/file IO with capability-scoped access     |
-| `notify` (Rust)      | Folder watcher; events bridged via Tauri emit    |
+| Package            | Purpose                                       |
+| ------------------ | --------------------------------------------- |
+| `@terrastruct/d2`  | D2 parsing + initial ELK layout (WASM)        |
+| `libavoid-js`      | Orthogonal connector routing (WASM)           |
+| `react`, `zustand` | UI + state                                    |
+| `ajv`              | Sidecar JSON schema validation                |
+| `@tauri-apps/api`  | Webview ↔ Rust bridge                         |
+| `tauri-plugin-fs`  | Folder/file IO with capability-scoped access  |
+| `notify` (Rust)    | Folder watcher; events bridged via Tauri emit |
 
 ## Status
 

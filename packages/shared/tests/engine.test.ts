@@ -9,11 +9,22 @@ describe('snapAndAssignSides', () => {
         { id: 'b', x: 300, y: 5, w: 100, h: 50 },
       ],
       edges: [
-        { id: 'a->b#0', from: 'a', to: 'b', route: [{ x: 100, y: 30 }, { x: 200, y: 30 }, { x: 304, y: 30 }] },
+        {
+          id: 'a->b#0',
+          from: 'a',
+          to: 'b',
+          route: [
+            { x: 100, y: 30 },
+            { x: 200, y: 30 },
+            { x: 304, y: 30 },
+          ],
+        },
       ],
     };
 
-    const { nodes, edgeSides } = snapAndAssignSides(raw, { grid: { size: 16, cols: 80, rows: 50 } });
+    const { nodes, edgeSides } = snapAndAssignSides(raw, {
+      grid: { size: 16, cols: 80, rows: 50 },
+    });
 
     expect(nodes.a?.x).toBe(0);
     expect(nodes.a?.w).toBe(112);

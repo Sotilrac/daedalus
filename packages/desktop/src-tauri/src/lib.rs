@@ -59,16 +59,13 @@ fn watch_folder(app: AppHandle, state: State<'_, WatcherState>, path: String) ->
                 EventKind::Remove(_) => "removed",
                 _ => return,
             };
+            // Only forward D2 source changes. The sidecar is ours, and round-tripping
+            // its writes back through the watcher would loop with the editor's
+            // debounced persist.
             let payload: Vec<FolderChange> = event
                 .paths
                 .into_iter()
-                .filter(|p| {
-                    p.extension().map(|ext| ext == "d2").unwrap_or(false)
-                        || p.file_name()
-                            .and_then(|n| n.to_str())
-                            .map(|n| n == ".daedalus.json")
-                            .unwrap_or(false)
-                })
+                .filter(|p| p.extension().map(|ext| ext == "d2").unwrap_or(false))
                 .map(|p| FolderChange {
                     path: p.to_string_lossy().to_string(),
                     kind: kind.to_string(),

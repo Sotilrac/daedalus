@@ -7,9 +7,12 @@ export function NodeView({ node }: { node: RenderNode }): JSX.Element {
   const moveNode = useGraphStore((s) => s.moveNode);
   const selectNode = useGraphStore((s) => s.selectNode);
   const selection = useGraphStore((s) => s.selection);
-  const [drag, setDrag] = useState<{ originX: number; originY: number; pointerX: number; pointerY: number } | null>(
-    null,
-  );
+  const [drag, setDrag] = useState<{
+    originX: number;
+    originY: number;
+    pointerX: number;
+    pointerY: number;
+  } | null>(null);
 
   const isSelected = selection === node.id;
 
@@ -72,10 +75,15 @@ function renderShape(node: RenderNode): JSX.Element {
   switch (node.shape) {
     case 'circle':
     case 'oval':
-      return <ellipse cx={node.w / 2} cy={node.h / 2} rx={node.w / 2} ry={node.h / 2} {...common} />;
+      return (
+        <ellipse cx={node.w / 2} cy={node.h / 2} rx={node.w / 2} ry={node.h / 2} {...common} />
+      );
     case 'diamond':
       return (
-        <polygon points={`${node.w / 2},0 ${node.w},${node.h / 2} ${node.w / 2},${node.h} 0,${node.h / 2}`} {...common} />
+        <polygon
+          points={`${node.w / 2},0 ${node.w},${node.h / 2} ${node.w / 2},${node.h} 0,${node.h / 2}`}
+          {...common}
+        />
       );
     case 'hexagon': {
       const q = node.w / 4;

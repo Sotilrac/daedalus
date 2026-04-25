@@ -11,9 +11,19 @@ export interface ReconcileResult {
 // Reconcile a saved Layout against a new Model. Reuses positions for kept ids;
 // drops layout entries for removed ids; lists new ids in `unplaced`. Edge ids
 // that vanish are stripped from per-side ordering.
-export function reconcileLayout(prevLayout: Layout, prevModel: Model, nextModel: Model): ReconcileResult {
+export function reconcileLayout(
+  prevLayout: Layout,
+  prevModel: Model,
+  nextModel: Model,
+): ReconcileResult {
   const diff = diffModels(prevModel, nextModel);
-  if (diff.kind === 'minor' && diff.addedNodes.length === 0 && diff.removedNodes.length === 0 && diff.addedEdges.length === 0 && diff.removedEdges.length === 0) {
+  if (
+    diff.kind === 'minor' &&
+    diff.addedNodes.length === 0 &&
+    diff.removedNodes.length === 0 &&
+    diff.addedEdges.length === 0 &&
+    diff.removedEdges.length === 0
+  ) {
     return { layout: prevLayout, diff, needsRelayout: false };
   }
 

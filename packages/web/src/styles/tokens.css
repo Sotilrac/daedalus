@@ -9,8 +9,8 @@
   --negative: #ef8b6f;
   --grid-dot: #7aa6cd;
   --shadow-rgb: 0 0 0;
-  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', 'Menlo', monospace;
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'BlinkMacSystemFont', sans-serif;
   --radius: 2px;
 }
 

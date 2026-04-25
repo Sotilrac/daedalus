@@ -36,9 +36,11 @@ export class TauriFolderSource implements DataSource {
     let active = true;
     let unlisten: UnlistenFn | null = null;
     void invoke('watch_folder', { path: this.rootPath })
-      .then(() => listen<FolderChange[]>('daedalus://folder-changed', (event) => {
-        if (active) listener(event.payload);
-      }))
+      .then(() =>
+        listen<FolderChange[]>('daedalus://folder-changed', (event) => {
+          if (active) listener(event.payload);
+        }),
+      )
       .then((u) => {
         if (active) unlisten = u;
         else u();
@@ -52,7 +54,10 @@ export class TauriFolderSource implements DataSource {
 }
 
 function joinPath(...parts: string[]): string {
-  return parts.filter(Boolean).join('/').replace(/\/{2,}/g, '/');
+  return parts
+    .filter(Boolean)
+    .join('/')
+    .replace(/\/{2,}/g, '/');
 }
 
 async function listD2Recursive(root: string, rel: string): Promise<string[]> {
