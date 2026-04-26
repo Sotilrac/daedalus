@@ -13,6 +13,7 @@ import {
   ExportPngIcon,
   ExportSvgIcon,
   FolderOpenIcon,
+  NewProjectIcon,
   RedoIcon,
   ReloadIcon,
   RelayoutIcon,
@@ -32,6 +33,7 @@ import { svgToPngBlob } from './export/png.js';
 import { svgToImageData } from './export/imagedata.js';
 import { Image as TauriImage } from '@tauri-apps/api/image';
 import { writeFile } from '@tauri-apps/plugin-fs';
+import { invoke } from '@tauri-apps/api/core';
 import { save as saveDialog } from '@tauri-apps/plugin-dialog';
 import { writeImage as clipboardWriteImage } from '@tauri-apps/plugin-clipboard-manager';
 
@@ -249,6 +251,26 @@ export function App(): JSX.Element {
     setSource(new TauriFolderSource(folder));
   }, [setSource]);
 
+  const onCreateProject = useCallback(async () => {
+    // The native save dialog doubles as our "name + place" picker: the user
+    // navigates to a parent directory and types the desired folder name. The
+    // returned path is treated as the new project folder.
+    const path = await saveDialog({
+      title: 'Create new project',
+      defaultPath: 'untitled-project',
+    });
+    if (!path) return;
+    try {
+      // Rust handles the mkdir + write + scope grant atomically; the JS fs
+      // plugin's static scopes don't cover arbitrary save-dialog paths.
+      await invoke('create_project', { path, sample: SAMPLE_D2 });
+      rememberFolder(path);
+      setSource(new TauriFolderSource(path));
+    } catch (err) {
+      setErrors(normalizeD2Error(err));
+    }
+  }, [setSource, setErrors]);
+
   // On first mount, restore the last opened folder if we have one. Errors
   // (deleted, renamed, no longer accessible) surface as a normal load error.
   useEffect(() => {
@@ -386,6 +408,14 @@ export function App(): JSX.Element {
   return (
     <div className="app" data-theme={theme}>
       <nav className="toolbar" aria-label="Toolbar">
+        <button
+          className="icon-btn"
+          onClick={() => void onCreateProject()}
+          title="New project"
+          aria-label="New project"
+        >
+          <NewProjectIcon />
+        </button>
         <button
           className="icon-btn"
           onClick={() => void onPickFolder()}
@@ -557,9 +587,14 @@ export function App(): JSX.Element {
               </header>
               <section>
                 <h2>Get started</h2>
+                <p>Create a new project or open an existing folder of .d2 files.</p>
                 <p>
-                  Open a folder of .d2 files to begin. Layout is saved alongside as .daedalus.json.
-                  D2 file changes are tracked live.
+                  The folder must contain <code>index.d2</code> as the entry point; it can in turn
+                  import other .d2 files in the folder.
+                </p>
+                <p>
+                  Your custom layout is saved alongside as <code>.daedalus.json</code> and D2 file
+                  changes are tracked live.
                 </p>
               </section>
               <section>
@@ -708,6 +743,39 @@ function dirOf(path: string): string {
   const idx = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
   return idx >= 0 ? path.slice(0, idx) : path;
 }
+
+// Starter D2 written into a freshly-created project. Demonstrates classes for
+// nodes/edges, three nodes, and a couple of edges so the user has something
+// to drag around immediately. Class application is in block form everywhere
+// (`{ class: ... }`) since D2's parser is most consistent that way.
+const SAMPLE_D2 = `classes: {
+  service: {
+    style.fill: "#dbeafe"
+    style.stroke: "#1e40af"
+  }
+  store: {
+    shape: cylinder
+    style.fill: "#fef3c7"
+    style.stroke: "#b45309"
+  }
+  sync: {
+    style.stroke: "#cbd5e1"
+    style.stroke-width: 2
+  }
+  async: {
+    style.stroke: "#cbd5e1"
+    style.stroke-dash: 4
+  }
+}
+
+api: API {class: service}
+worker: Worker {class: service}
+db: Postgres {class: store}
+
+api -> worker: enqueue {class: async}
+api -> db: read/write {class: sync}
+worker -> db: write {class: sync}
+`;
 
 const EXPORT_DIR_KEY = 'daedalus.lastExportDir';
 const LAST_FOLDER_KEY = 'daedalus.lastFolder';

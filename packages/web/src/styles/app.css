@@ -449,6 +449,15 @@ button:disabled {
   color: var(--ink);
 }
 
+.welcome-card code {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  padding: 1px 5px;
+  border-radius: var(--radius);
+  background: rgb(var(--ink-rgb) / 8%);
+  color: var(--ink);
+}
+
 .welcome-features {
   margin: 0;
   padding: 0;

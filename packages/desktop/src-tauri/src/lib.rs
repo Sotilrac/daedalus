@@ -106,13 +106,35 @@ fn unwatch_folder(state: State<'_, WatcherState>, path: String) -> Result<(), St
     Ok(())
 }
 
+#[tauri::command]
+fn create_project(app: AppHandle, path: String, sample: String) -> Result<(), String> {
+    // The native save dialog returns an arbitrary path inside any
+    // user-accessible location. The fs plugin's static scopes don't cover
+    // that path until we explicitly grant access — mirror the `pick_folder`
+    // flow so creating a project is permission-equivalent to opening one.
+    let folder = PathBuf::from(&path);
+    if folder.exists() {
+        return Err(format!("A folder or file already exists at {path}"));
+    }
+    std::fs::create_dir_all(&folder).map_err(|e| format!("Failed to create folder: {e}"))?;
+    let index = folder.join("index.d2");
+    std::fs::write(&index, sample).map_err(|e| format!("Failed to write index.d2: {e}"))?;
+    grant_folder_access(&app, &path)?;
+    Ok(())
+}
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .manage(WatcherState::default())
-        .invoke_handler(tauri::generate_handler![pick_folder, watch_folder, unwatch_folder])
+        .invoke_handler(tauri::generate_handler![
+            pick_folder,
+            watch_folder,
+            unwatch_folder,
+            create_project,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running daedalus");
 }
