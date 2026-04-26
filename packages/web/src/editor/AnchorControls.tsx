@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { EdgeId, NodeId, ShapeKind, Side, NodeLayout } from '@daedalus/shared';
-import { SIDES, personBodyTop } from '@daedalus/shared';
+import { SIDES } from '@daedalus/shared';
+import { pinAt } from '@daedalus/shared/routing';
 import { useGraphStore } from '../store/graphStore.js';
 
 interface Props {
@@ -204,20 +205,7 @@ function localPin(opts: {
   h: number;
   shape: ShapeKind;
 }): { x: number; y: number } {
-  const t = (opts.index + 1) / (opts.count + 1);
-  // Person's left/right anchors live on the body rectangle only (top of the
-  // body to the bottom edge), so connection lines never run to the head.
-  const personSide = opts.shape === 'person' && (opts.side === 'left' || opts.side === 'right');
-  const yOffset = personSide ? personBodyTop(opts.w, opts.h) : 0;
-  const yLength = personSide ? opts.h - yOffset : opts.h;
-  switch (opts.side) {
-    case 'top':
-      return { x: opts.w * t, y: 0 };
-    case 'bottom':
-      return { x: opts.w * t, y: opts.h };
-    case 'left':
-      return { x: 0, y: yOffset + yLength * t };
-    case 'right':
-      return { x: opts.w, y: yOffset + yLength * t };
-  }
+  // Single source of truth lives in shared/routing/pins.ts so libavoid pins
+  // and rendered anchor dots stay locked to the same outline projection.
+  return pinAt(opts.w, opts.h, opts.side, opts.index, opts.count, opts.shape);
 }

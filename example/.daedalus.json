@@ -323,9 +323,9 @@
           }
         },
         "newinternet": {
-          "x": 688,
+          "x": 656,
           "y": -976,
-          "w": 576,
+          "w": 640,
           "h": 224,
           "connections": {
             "top": [
@@ -339,7 +339,7 @@
           }
         },
         "newinternet.phone": {
-          "x": 704,
+          "x": 688,
           "y": -928,
           "w": 160,
           "h": 128,
@@ -353,7 +353,7 @@
           }
         },
         "newinternet.fridge": {
-          "x": 1088,
+          "x": 1104,
           "y": -928,
           "w": 160,
           "h": 128,
@@ -402,16 +402,16 @@
           "w": 128,
           "h": 96,
           "connections": {
-            "top": [
-              "newinternet.condorcam->hooli.gavin#0"
-            ],
+            "top": [],
             "right": [],
             "bottom": [
               "hooli.gavin->hooli.nucleus#0",
               "hooli.gavin->hooli.hoolixyz#0",
               "hooli.gavin->piedpiper#0"
             ],
-            "left": []
+            "left": [
+              "newinternet.condorcam->hooli.gavin#0"
+            ]
           }
         },
         "hooli.endframe": {
@@ -753,7 +753,7 @@
         },
         "newinternet.condorcam->hooli.gavin#0": {
           "fromSide": "bottom",
-          "toSide": "top"
+          "toSide": "left"
         }
       },
       "unplaced": []
