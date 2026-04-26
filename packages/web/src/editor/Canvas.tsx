@@ -11,18 +11,12 @@ import { useGraphStore } from '../store/graphStore.js';
 import { NodeView } from './NodeView.js';
 import { EdgeView } from './EdgeView.js';
 import { GridDefs } from './GridDefs.js';
+import { naturalBBox, type BBox } from '@daedalus/shared';
 
 interface CanvasProps {
   hostRef: RefObject<HTMLDivElement | null>;
   showGrid: boolean;
   showAnchors: boolean;
-}
-
-interface BBox {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
 }
 
 export const Canvas = forwardRef<SVGSVGElement, CanvasProps>(function Canvas(
@@ -66,40 +60,16 @@ export const Canvas = forwardRef<SVGSVGElement, CanvasProps>(function Canvas(
   // Natural-coords bbox of the diagram (before applying viewOffset). Computed
   // directly from layout + routes — no DOM measurement — so the outline tracks
   // the content in lock-step instead of via a measure-then-render round trip.
-  const naturalBBox = useMemo<BBox | null>(() => {
-    if (!layout) return null;
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-    for (const n of Object.values(layout.nodes)) {
-      if (n.x < minX) minX = n.x;
-      if (n.y < minY) minY = n.y;
-      if (n.x + n.w > maxX) maxX = n.x + n.w;
-      if (n.y + n.h > maxY) maxY = n.y + n.h;
-    }
-    for (const route of Object.values(routes)) {
-      for (const p of route) {
-        if (p.x < minX) minX = p.x;
-        if (p.y < minY) minY = p.y;
-        if (p.x > maxX) maxX = p.x;
-        if (p.y > maxY) maxY = p.y;
-      }
-    }
-    if (!Number.isFinite(minX)) return null;
-    return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
-  }, [layout, routes]);
+  const natural = useMemo<BBox | null>(
+    () => (layout ? naturalBBox(layout, routes) : null),
+    [layout, routes],
+  );
 
-  // Compute everything that depends only on naturalBBox + viewOffset BEFORE
-  // any conditional return, so the hooks below run unconditionally.
+  // Compute everything that depends only on natural + viewOffset BEFORE any
+  // conditional return, so the hooks below run unconditionally.
   const margin = layout?.settings.export.margin ?? 0;
-  const bbox: BBox | null = naturalBBox
-    ? {
-        x: naturalBBox.x + viewOffset.x,
-        y: naturalBBox.y + viewOffset.y,
-        w: naturalBBox.w,
-        h: naturalBBox.h,
-      }
+  const bbox: BBox | null = natural
+    ? { x: natural.x + viewOffset.x, y: natural.y + viewOffset.y, w: natural.w, h: natural.h }
     : null;
 
   const outlineLeft = bbox ? bbox.x - margin : 0;

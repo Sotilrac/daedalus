@@ -1,9 +1,9 @@
 {
   "name": "daedalus",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "type": "module",
-  "description": "D2-driven diagram editor with snap-to-grid layout, orthogonal routing, and a blueprint theme.",
+  "description": "D2-driven diagram editor with snap-to-grid layout and orthogonal edge routing.",
   "author": "Carlos Asmat <casmat@dephy.com>",
   "license": "MIT",
   "packageManager": "pnpm@10.33.1",
@@ -17,7 +17,7 @@
     "typecheck": "pnpm -r --filter './packages/*' typecheck",
     "lint": "pnpm -r --filter './packages/*' lint && pnpm run lint:prettier && pnpm run lint:stylelint",
     "lint:prettier": "prettier --check .",
-    "lint:stylelint": "stylelint \"packages/**/*.css\" --allow-empty-input --ignore-pattern \"**/dist/**\" --ignore-pattern \"**/node_modules/**\"",
+    "lint:stylelint": "stylelint \"packages/**/*.css\" --allow-empty-input --ignore-pattern \"**/dist/**\" --ignore-pattern \"**/node_modules/**\" --ignore-pattern \"**/target/**\"",
     "format": "prettier --write . && pnpm -r --filter './packages/*' lint --fix"
   },
   "devDependencies": {

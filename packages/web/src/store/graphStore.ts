@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import {
   DEFAULT_GRID,
-  DEFAULT_VIEWPORT,
   applySavedLayout,
   buildLayoutFromRaw,
   buildRenderPlan,
@@ -66,7 +65,6 @@ export interface GraphState {
     prevModel?: Model | null;
     prevLayout?: Layout | null;
   }): Promise<void>;
-  relayout(): Promise<void>;
   moveNode(id: NodeId, x: number, y: number): Promise<void>;
   // Batched move: each entry's `(x, y)` is the desired top-left for that
   // node id. Snap, clamp, and descendant-shift run per entry, then routing
@@ -178,15 +176,6 @@ export const useGraphStore = create<GraphState>((set, get) => ({
       manualStash: null,
       showingAuto: false,
     });
-  },
-
-  async relayout() {
-    const { model, layout } = get();
-    if (!model || !layout) return;
-    // Re-compile with ELK using cached files is a job for the source layer; the
-    // store only re-snaps positions from existing routes when called directly.
-    // The actual relayout entry point is `loadFromCompile` with prev=null.
-    set({ needsRelayout: false });
   },
 
   async moveNode(id, x, y) {
@@ -534,7 +523,3 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     }
   },
 }));
-
-export function emptyDefaults(): { grid: typeof DEFAULT_GRID; viewport: typeof DEFAULT_VIEWPORT } {
-  return { grid: DEFAULT_GRID, viewport: DEFAULT_VIEWPORT };
-}

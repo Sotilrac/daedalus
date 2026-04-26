@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildRenderPlan,
+  labelPoint,
+  naturalBBox,
   polylineToPath,
   resolveLabelPlacement,
   wrapLabel,
@@ -138,5 +140,48 @@ describe('wrapLabel', () => {
 
   it('preserves explicit newlines', () => {
     expect(wrapLabel('first\nsecond', 200, 12)).toEqual(['first', 'second']);
+  });
+
+  it('returns a single empty entry for empty input', () => {
+    expect(wrapLabel('', 200, 12)).toEqual(['']);
+  });
+});
+
+describe('labelPoint', () => {
+  it('returns origin for an empty route', () => {
+    expect(labelPoint([])).toEqual({ x: 0, y: 0 });
+  });
+
+  it('returns the only point for a degenerate route', () => {
+    expect(labelPoint([{ x: 5, y: 7 }])).toEqual({ x: 5, y: 7 });
+  });
+
+  it('lands on the arc-length midpoint of a multi-segment polyline', () => {
+    const route = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 20 },
+    ];
+    // Total length 30; halfway = 15. First segment is 10, so mid lands 5px
+    // into the second segment (at x=10, y=5).
+    expect(labelPoint(route)).toEqual({ x: 10, y: 5 });
+  });
+});
+
+describe('naturalBBox', () => {
+  it('returns null when there is nothing to bound', () => {
+    const empty: Layout = { ...layout, nodes: {}, edges: {} };
+    expect(naturalBBox(empty, {})).toBeNull();
+  });
+
+  it('encloses every node and every route waypoint', () => {
+    const bbox = naturalBBox(layout, {
+      'a->b#0': [
+        { x: 96, y: 32 },
+        { x: 200, y: -10 },
+        { x: 256, y: 32 },
+      ],
+    });
+    expect(bbox).toEqual({ x: 0, y: -10, w: 352, h: 74 });
   });
 });

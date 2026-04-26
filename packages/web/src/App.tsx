@@ -20,6 +20,7 @@ import {
   SettingsIcon,
   UndoIcon,
 } from './editor/icons.js';
+import { naturalBBox } from '@daedalus/shared';
 import { normalizeD2Error } from '@daedalus/shared/d2';
 import {
   emptySidecar,
@@ -36,6 +37,20 @@ import { writeFile } from '@tauri-apps/plugin-fs';
 import { invoke } from '@tauri-apps/api/core';
 import { save as saveDialog } from '@tauri-apps/plugin-dialog';
 import { writeImage as clipboardWriteImage } from '@tauri-apps/plugin-clipboard-manager';
+import {
+  ALLOW_CTX_KEY,
+  AUTO_RELOAD_KEY,
+  forgetFolder,
+  recallFolder,
+  rememberFolder,
+  SHOW_ANCHORS_KEY,
+  SHOW_GRID_KEY,
+  THEME_KEY,
+  useStoredEnum,
+  useStoredFlag,
+} from './prefs.js';
+import { SAMPLE_D2 } from './sample.js';
+import { ensureExtension, exportDefaultPath, rememberExportDir } from './util/paths.js';
 
 export function App(): JSX.Element {
   const source = useSourceStore((s) => s.source);
@@ -59,22 +74,25 @@ export function App(): JSX.Element {
   const redo = useGraphStore((s) => s.redo);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [autoReload, setAutoReload] = useState<boolean>(recallAutoReload);
-  const [allowContextMenu, setAllowContextMenu] = useState<boolean>(recallAllowContextMenu);
-  const [showGrid, setShowGrid] = useState<boolean>(recallShowGrid);
-  const [showAnchors, setShowAnchors] = useState<boolean>(recallShowAnchors);
+  const [autoReload, setAutoReload] = useStoredFlag(AUTO_RELOAD_KEY, true);
+  const [allowContextMenu, setAllowContextMenu] = useStoredFlag(ALLOW_CTX_KEY, false);
+  const [showGrid, setShowGrid] = useStoredFlag(SHOW_GRID_KEY, true);
+  const [showAnchors, setShowAnchors] = useStoredFlag(SHOW_ANCHORS_KEY, true);
   // Theme is a user-level preference (persisted via localStorage), not a
   // per-project property — that way it can be changed on the empty/home
   // page where there's no layout to mutate. When a project is loaded we
   // sync the user's pref into `layout.viewport.theme` so the sidecar stays
   // consistent for backwards compatibility.
-  const [theme, setThemeState] = useState<'slate' | 'paper'>(recallTheme);
+  const [theme, setThemeState] = useStoredEnum<'slate' | 'paper'>(THEME_KEY, 'slate', [
+    'slate',
+    'paper',
+  ]);
   const setTheme = useCallback(
     (t: 'slate' | 'paper') => {
       setThemeState(t);
       setStoreTheme(t);
     },
-    [setStoreTheme],
+    [setStoreTheme, setThemeState],
   );
 
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -94,36 +112,6 @@ export function App(): JSX.Element {
   const loadGenRef = useRef(0);
   // Forward ref to onCenter; used by reload before onCenter is defined.
   const onCenterRef = useRef<() => void>(() => undefined);
-
-  useEffect(() => {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(AUTO_RELOAD_KEY, String(autoReload));
-    }
-  }, [autoReload]);
-
-  useEffect(() => {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(ALLOW_CTX_KEY, String(allowContextMenu));
-    }
-  }, [allowContextMenu]);
-
-  useEffect(() => {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(SHOW_GRID_KEY, String(showGrid));
-    }
-  }, [showGrid]);
-
-  useEffect(() => {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(SHOW_ANCHORS_KEY, String(showAnchors));
-    }
-  }, [showAnchors]);
-
-  useEffect(() => {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(THEME_KEY, theme);
-    }
-  }, [theme]);
 
   // Dismiss the settings popout on outside-click or Escape. Only attached
   // while the panel is open so the listener doesn't sit on document for
@@ -271,6 +259,33 @@ export function App(): JSX.Element {
     }
   }, [setSource, setErrors]);
 
+  // Hard relayout: re-runs the engine over the current files with no prior
+  // model or layout, so positions and per-side ordering are recomputed from
+  // scratch. Used when the user explicitly opts out of incremental reconcile
+  // (typically after a structural D2 change that moved nodes around).
+  const onRelayout = useCallback(() => {
+    if (!source) return;
+    void (async () => {
+      setLoading(true);
+      try {
+        const files = await readAllD2(source);
+        setFiles(files);
+        await useGraphStore.getState().loadFromCompile({
+          files,
+          inputPath: entryPath,
+          prevModel: null,
+          prevLayout: null,
+        });
+        lastPersistedRef.current = null;
+        setErrors([]);
+      } catch (err) {
+        setErrors(normalizeD2Error(err));
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [source, entryPath, setFiles, setErrors, setLoading]);
+
   // On first mount, restore the last opened folder if we have one. Errors
   // (deleted, renamed, no longer accessible) surface as a normal load error.
   useEffect(() => {
@@ -322,39 +337,16 @@ export function App(): JSX.Element {
     const host = hostRef.current;
     const state = useGraphStore.getState();
     const currentLayout = state.layout;
-    const routes = state.routes;
     if (!host || !currentLayout) return;
-
-    // Compute the natural-coords bbox the same way Canvas does.
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-    for (const n of Object.values(currentLayout.nodes)) {
-      if (n.x < minX) minX = n.x;
-      if (n.y < minY) minY = n.y;
-      if (n.x + n.w > maxX) maxX = n.x + n.w;
-      if (n.y + n.h > maxY) maxY = n.y + n.h;
-    }
-    for (const route of Object.values(routes)) {
-      for (const p of route) {
-        if (p.x < minX) minX = p.x;
-        if (p.y < minY) minY = p.y;
-        if (p.x > maxX) maxX = p.x;
-        if (p.y > maxY) maxY = p.y;
-      }
-    }
-    if (!Number.isFinite(minX)) return;
-    const bw = maxX - minX;
-    const bh = maxY - minY;
+    const bbox = naturalBBox(currentLayout, state.routes);
+    if (!bbox) return;
     const hw = host.clientWidth;
     const hh = host.clientHeight;
-
     // Per-axis: centre on a dimension if it fits, otherwise pad-align
     // top-left on that axis only.
     const pad = currentLayout.settings.export.margin;
-    const nx = bw <= hw ? (hw - bw) / 2 - minX : pad - minX;
-    const ny = bh <= hh ? (hh - bh) / 2 - minY : pad - minY;
+    const nx = bbox.w <= hw ? (hw - bbox.w) / 2 - bbox.x : pad - bbox.x;
+    const ny = bbox.h <= hh ? (hh - bbox.h) / 2 - bbox.y : pad - bbox.y;
     state.setViewOffset({ x: nx, y: ny });
     host.scrollTo({ left: 0, top: 0 });
   }, []);
@@ -379,7 +371,7 @@ export function App(): JSX.Element {
   }, [rootPath, layout]);
 
   const onCloseProject = useCallback(() => {
-    if (typeof localStorage !== 'undefined') localStorage.removeItem(LAST_FOLDER_KEY);
+    forgetFolder();
     setSource(null);
     setFiles({});
     setErrors([]);
@@ -485,28 +477,7 @@ export function App(): JSX.Element {
         </button>
         <button
           className="icon-btn"
-          onClick={() => {
-            if (!source) return;
-            void (async () => {
-              setLoading(true);
-              try {
-                const files = await readAllD2(source);
-                setFiles(files);
-                await useGraphStore.getState().loadFromCompile({
-                  files,
-                  inputPath: entryPath,
-                  prevModel: null,
-                  prevLayout: null,
-                });
-                lastPersistedRef.current = null;
-                setErrors([]);
-              } catch (err) {
-                setErrors(normalizeD2Error(err));
-              } finally {
-                setLoading(false);
-              }
-            })();
-          }}
+          onClick={onRelayout}
           disabled={!source}
           title={needsRelayout ? 'Relayout (out of sync)' : 'Relayout'}
           aria-label="Relayout"
@@ -727,113 +698,4 @@ function exportOpts(svg: SVGSVGElement, layout: Layout): ExportOptions {
       h: maxY - minY,
     },
   };
-}
-
-function folderBasename(path: string | null): string {
-  if (!path) return 'diagram';
-  const m = path.match(/[^/\\]+$/);
-  return m?.[0] ?? 'diagram';
-}
-
-function ensureExtension(path: string, ext: string): string {
-  return path.toLowerCase().endsWith(`.${ext}`) ? path : `${path}.${ext}`;
-}
-
-function dirOf(path: string): string {
-  const idx = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
-  return idx >= 0 ? path.slice(0, idx) : path;
-}
-
-// Starter D2 written into a freshly-created project. Demonstrates classes for
-// nodes/edges, three nodes, and a couple of edges so the user has something
-// to drag around immediately. Class application is in block form everywhere
-// (`{ class: ... }`) since D2's parser is most consistent that way.
-const SAMPLE_D2 = `classes: {
-  service: {
-    style.fill: "#dbeafe"
-    style.stroke: "#1e40af"
-  }
-  store: {
-    shape: cylinder
-    style.fill: "#fef3c7"
-    style.stroke: "#b45309"
-  }
-  sync: {
-    style.stroke: "#cbd5e1"
-    style.stroke-width: 2
-  }
-  async: {
-    style.stroke: "#cbd5e1"
-    style.stroke-dash: 4
-  }
-}
-
-api: API {class: service}
-worker: Worker {class: service}
-db: Postgres {class: store}
-
-api -> worker: enqueue {class: async}
-api -> db: read/write {class: sync}
-worker -> db: write {class: sync}
-`;
-
-const EXPORT_DIR_KEY = 'daedalus.lastExportDir';
-const LAST_FOLDER_KEY = 'daedalus.lastFolder';
-const AUTO_RELOAD_KEY = 'daedalus.autoReload';
-const ALLOW_CTX_KEY = 'daedalus.allowContextMenu';
-const SHOW_GRID_KEY = 'daedalus.showGrid';
-const SHOW_ANCHORS_KEY = 'daedalus.showAnchors';
-const THEME_KEY = 'daedalus.theme';
-
-function recallAutoReload(): boolean {
-  if (typeof localStorage === 'undefined') return true;
-  const v = localStorage.getItem(AUTO_RELOAD_KEY);
-  return v === null ? true : v === 'true';
-}
-
-function recallAllowContextMenu(): boolean {
-  if (typeof localStorage === 'undefined') return false;
-  return localStorage.getItem(ALLOW_CTX_KEY) === 'true';
-}
-
-function recallShowGrid(): boolean {
-  if (typeof localStorage === 'undefined') return true;
-  const v = localStorage.getItem(SHOW_GRID_KEY);
-  return v === null ? true : v === 'true';
-}
-
-function recallShowAnchors(): boolean {
-  if (typeof localStorage === 'undefined') return true;
-  const v = localStorage.getItem(SHOW_ANCHORS_KEY);
-  return v === null ? true : v === 'true';
-}
-
-function recallTheme(): 'slate' | 'paper' {
-  if (typeof localStorage === 'undefined') return 'slate';
-  const v = localStorage.getItem(THEME_KEY);
-  return v === 'paper' ? 'paper' : 'slate';
-}
-
-function rememberFolder(path: string): void {
-  if (typeof localStorage === 'undefined') return;
-  localStorage.setItem(LAST_FOLDER_KEY, path);
-}
-
-function recallFolder(): string | null {
-  if (typeof localStorage === 'undefined') return null;
-  return localStorage.getItem(LAST_FOLDER_KEY);
-}
-
-function exportDefaultPath(rootPath: string | null, ext: 'svg' | 'png'): string {
-  const dir =
-    (typeof localStorage !== 'undefined' && localStorage.getItem(EXPORT_DIR_KEY)) || rootPath || '';
-  const name = `${folderBasename(rootPath)}.${ext}`;
-  if (!dir) return name;
-  const sep = dir.includes('\\') ? '\\' : '/';
-  return `${dir}${sep}${name}`;
-}
-
-function rememberExportDir(savedPath: string): void {
-  if (typeof localStorage === 'undefined') return;
-  localStorage.setItem(EXPORT_DIR_KEY, dirOf(savedPath));
 }

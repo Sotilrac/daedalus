@@ -39,4 +39,36 @@ describe('sidecar IO', () => {
     const parsed = parseSidecar('{}');
     expect(parsed.entries).toEqual({});
   });
+
+  it('migrates the legacy "blueprint" theme to "slate"', () => {
+    const legacy = {
+      entries: {
+        'index.d2': {
+          ...layout,
+          viewport: { ...layout.viewport, theme: 'blueprint' },
+        },
+      },
+    };
+    const parsed = parseSidecar(JSON.stringify(legacy));
+    expect(getEntry(parsed, 'index.d2')?.viewport.theme).toBe('slate');
+  });
+
+  it('fills in missing settings on older sidecars', () => {
+    const legacy = {
+      entries: {
+        'index.d2': {
+          version: 1,
+          grid: layout.grid,
+          viewport: layout.viewport,
+          nodes: layout.nodes,
+          edges: layout.edges,
+          unplaced: [],
+        },
+      },
+    };
+    const parsed = parseSidecar(JSON.stringify(legacy));
+    const entry = getEntry(parsed, 'index.d2');
+    expect(entry?.settings.routing.shapeBuffer).toBeGreaterThanOrEqual(0);
+    expect(entry?.settings.export.margin).toBeGreaterThanOrEqual(0);
+  });
 });

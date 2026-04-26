@@ -350,3 +350,37 @@ export function polylineToPath(points: readonly Point[]): string {
   if (!first) return '';
   return `M ${first.x} ${first.y}` + rest.map((p) => ` L ${p.x} ${p.y}`).join('');
 }
+
+export interface BBox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+// Axis-aligned union of every node box and every route waypoint, in the
+// layout's natural coordinate space (no viewOffset applied). Returns null
+// when there's nothing to bound. Used by the editor to fit the export
+// outline to its content and by `onCenter` to place that content in view.
+export function naturalBBox(layout: Layout, routes: EdgeRoutes): BBox | null {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const n of Object.values(layout.nodes)) {
+    if (n.x < minX) minX = n.x;
+    if (n.y < minY) minY = n.y;
+    if (n.x + n.w > maxX) maxX = n.x + n.w;
+    if (n.y + n.h > maxY) maxY = n.y + n.h;
+  }
+  for (const route of Object.values(routes)) {
+    for (const p of route) {
+      if (p.x < minX) minX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y > maxY) maxY = p.y;
+    }
+  }
+  if (!Number.isFinite(minX)) return null;
+  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+}
