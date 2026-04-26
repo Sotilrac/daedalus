@@ -382,6 +382,11 @@ button:disabled {
   place-items: center;
   height: 100%;
   padding: 24px;
+
+  /* Contain any oversized welcome-card here instead of letting it bubble up
+    to canvas-host's overflow: auto, which would put scrollbars on both
+    axes of the page. The card just gets clipped at extreme zoom levels. */
+  overflow: hidden;
   font-family: var(--font-sans);
   color: var(--ink);
   background-color: var(--paper);
