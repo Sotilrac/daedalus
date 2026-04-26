@@ -6,6 +6,7 @@ import { readAllD2 } from './sources/loadFolder.js';
 import { Canvas } from './editor/Canvas.js';
 import { ErrorOverlay } from './editor/ErrorOverlay.js';
 import { SettingsPanel } from './editor/SettingsPanel.js';
+import { WelcomeCard } from './editor/WelcomeCard.js';
 import {
   CenterIcon,
   CompareIcon,
@@ -49,6 +50,7 @@ import {
   useStoredEnum,
   useStoredFlag,
 } from './prefs.js';
+import { DISPLAY_NAME, VERSION_LABEL } from './branding.js';
 import { SAMPLE_D2 } from './sample.js';
 import { ensureExtension, exportDefaultPath, rememberExportDir } from './util/paths.js';
 
@@ -74,6 +76,10 @@ export function App(): JSX.Element {
   const redo = useGraphStore((s) => s.redo);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Re-opens the welcome card on top of an open project (the home page renders
+  // it unconditionally). Toggled by clicking the bottom-left brand; dismissed
+  // by clicking outside the card or pressing Escape.
+  const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [autoReload, setAutoReload] = useStoredFlag(AUTO_RELOAD_KEY, true);
   const [allowContextMenu, setAllowContextMenu] = useStoredFlag(ALLOW_CTX_KEY, false);
   const [showGrid, setShowGrid] = useStoredFlag(SHOW_GRID_KEY, true);
@@ -100,6 +106,10 @@ export function App(): JSX.Element {
   // Wraps the Settings button + popout panel so an outside click can close
   // the panel without dismissing it when the user interacts inside it.
   const settingsWrapRef = useRef<HTMLSpanElement | null>(null);
+  // Outside-click detection for the welcome overlay: clicks on the brand
+  // (which toggles it) or inside the card itself shouldn't dismiss.
+  const welcomeCardRef = useRef<HTMLDivElement | null>(null);
+  const brandRef = useRef<HTMLDivElement | null>(null);
   // The most recent layout we wrote; used to skip the next persist if state
   // came back unchanged (e.g. just after a sidecar read).
   const lastPersistedRef = useRef<unknown>(null);
@@ -134,6 +144,35 @@ export function App(): JSX.Element {
       document.removeEventListener('keydown', onKey);
     };
   }, [settingsOpen]);
+
+  // Same dismiss-on-outside pattern for the welcome overlay (project-open
+  // case). The home-page welcome card has no source loaded and is always
+  // visible, so the listener only attaches when the overlay is in use.
+  useEffect(() => {
+    if (!source || !welcomeOpen) return undefined;
+    const onPointer = (e: MouseEvent): void => {
+      const target = e.target;
+      if (!(target instanceof Node)) return;
+      if (welcomeCardRef.current?.contains(target)) return;
+      if (brandRef.current?.contains(target)) return;
+      setWelcomeOpen(false);
+    };
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setWelcomeOpen(false);
+    };
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [source, welcomeOpen]);
+
+  // Closing a project also dismisses any open welcome overlay so the home
+  // page renders a single welcome card instead of stacking two.
+  useEffect(() => {
+    if (!source && welcomeOpen) setWelcomeOpen(false);
+  }, [source, welcomeOpen]);
 
   // Whenever a project loads (layout transitions from null → some), force
   // the sidecar's theme to match the user's current preference. The user
@@ -551,50 +590,14 @@ export function App(): JSX.Element {
       >
         {!source && (
           <div className="empty-state">
-            <article className="welcome-card">
-              <header className="welcome-header">
-                <h1 className="welcome-name">Δαίδαλος</h1>
-                <p className="welcome-tagline">Customizable layout for D2</p>
-              </header>
-              <section>
-                <h2>Get started</h2>
-                <p>Create a new project or open an existing folder of .d2 files.</p>
-                <p>
-                  The folder must contain <code>index.d2</code> as the entry point; it can in turn
-                  import other .d2 files in the folder.
-                </p>
-                <p>
-                  Your custom layout is saved alongside as <code>.daedalus.json</code> and D2 file
-                  changes are tracked live.
-                </p>
-              </section>
-              <section>
-                <h2>What you can do</h2>
-                <ul className="welcome-features">
-                  <li>Move connections to any side of a node</li>
-                  <li>Drag, drop, and resize nodes on the grid</li>
-                  <li>Export to SVG or PNG when you&apos;re done</li>
-                  <li>Adjust routing, display, and theme in Settings</li>
-                </ul>
-              </section>
-              <footer className="welcome-footer">
-                <a
-                  href="https://github.com/Sotilrac/daedalus/releases"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title="View releases on GitHub"
-                >
-                  v{__APP_VERSION__}
-                </a>
-                <a
-                  href="https://gitlab.com/sotilrac/daedalus"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Source on GitLab
-                </a>
-              </footer>
-            </article>
+            <WelcomeCard />
+          </div>
+        )}
+        {source && welcomeOpen && (
+          <div className="welcome-overlay" role="dialog" aria-label="About Daedalus">
+            <div ref={welcomeCardRef} className="welcome-overlay-inner">
+              <WelcomeCard />
+            </div>
           </div>
         )}
         <ErrorOverlay errors={errors} onDismiss={() => setErrors([])} />
@@ -606,8 +609,17 @@ export function App(): JSX.Element {
         />
       </main>
       {source && (
-        <div className="brand-floating">
-          <span className="display-name">Δαίδαλος</span>
+        <div className="brand-floating" ref={brandRef}>
+          <button
+            type="button"
+            className="display-name"
+            title="About Daedalus"
+            aria-label="About Daedalus"
+            aria-pressed={welcomeOpen}
+            onClick={() => setWelcomeOpen((o) => !o)}
+          >
+            {DISPLAY_NAME}
+          </button>
           <span className="author" aria-hidden>
             by Carlos Asmat
           </span>
@@ -618,7 +630,7 @@ export function App(): JSX.Element {
             rel="noopener noreferrer"
             title="View releases on GitHub"
           >
-            v{__APP_VERSION__}
+            {VERSION_LABEL}
           </a>
         </div>
       )}

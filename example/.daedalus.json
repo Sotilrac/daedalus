@@ -11,7 +11,7 @@
         "zoom": 1,
         "panX": 0,
         "panY": 0,
-        "theme": "slate"
+        "theme": "paper"
       },
       "settings": {
         "routing": {
@@ -66,32 +66,34 @@
             ],
             "right": [],
             "bottom": [
-              "money.monica->piedpiper.founders.richard#0",
               "piedpiper.founders.richard->newinternet#0",
               "piedpiper.founders.richard->piedpiper.middleout#0"
             ],
-            "left": []
+            "left": [
+              "money.monica->piedpiper.founders.richard#0"
+            ]
           }
         },
         "piedpiper.founders.erlich": {
           "x": 960,
-          "y": -2464,
+          "y": -2432,
           "w": 160,
           "h": 96,
           "connections": {
             "top": [],
             "right": [],
             "bottom": [
-              "piedpiper.founders.erlich->aviato#0",
               "piedpiper.founders.erlich->piedpiper.pipey#0",
               "piedpiper.founders.erlich->piedpiper.middleout#0"
             ],
-            "left": []
+            "left": [
+              "piedpiper.founders.erlich->aviato#0"
+            ]
           }
         },
         "piedpiper.founders.jared": {
           "x": 1216,
-          "y": -2448,
+          "y": -2432,
           "w": 160,
           "h": 96,
           "connections": {
@@ -427,7 +429,7 @@
           }
         },
         "hooli.nucleus": {
-          "x": 448,
+          "x": 416,
           "y": -1408,
           "w": 96,
           "h": 64,
@@ -445,7 +447,7 @@
           }
         },
         "hooli.hoolicloud": {
-          "x": 432,
+          "x": 400,
           "y": -1264,
           "w": 128,
           "h": 64,
@@ -540,10 +542,11 @@
           "h": 96,
           "connections": {
             "top": [],
-            "right": [],
-            "bottom": [
-              "money.monica->money.raviga#0",
+            "right": [
               "money.monica->piedpiper.founders.richard#0"
+            ],
+            "bottom": [
+              "money.monica->money.raviga#0"
             ],
             "left": []
           }
@@ -725,15 +728,15 @@
           "toSide": "top"
         },
         "money.monica->piedpiper.founders.richard#0": {
-          "fromSide": "bottom",
-          "toSide": "bottom"
+          "fromSide": "right",
+          "toSide": "left"
         },
         "money.raviga->hooli#0": {
           "fromSide": "bottom",
           "toSide": "left"
         },
         "piedpiper.founders.erlich->aviato#0": {
-          "fromSide": "bottom",
+          "fromSide": "left",
           "toSide": "right"
         },
         "piedpiper.eng.bighead->nothotdog#0": {

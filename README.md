@@ -2,6 +2,8 @@
 
 D2-driven diagram editor with snap-to-grid layout and orthogonal edge automatic routing.
 
+The name comes from the Ancient Greek verb δαιδάλλω — to craft skillfully, to make artfully — by way of Δαίδαλος, the mythical artificer. In the same spirit: D2 keeps the structure correct, and you sculpt the composition.
+
 ## Features
 
 - **Write D2, drag the layout.** Your `.d2` files stay the source of truth; Daedalus never rewrites them. You move nodes around for clarity, and the positions, sizes, and connection ordering save alongside in `.daedalus.json`.
@@ -138,4 +140,4 @@ If you see `libavoid routing failed, using manhattan fallback` warnings, paste t
 
 ## License
 
-MIT.
+[Mozilla Public License 2.0](LICENSE). File-level weak copyleft: you can ship Daedalus inside proprietary or differently-licensed projects, but modifications to MPL-licensed source files have to be published under MPL-2.0. Includes an explicit patent grant.

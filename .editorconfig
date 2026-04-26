@@ -17,3 +17,9 @@ trim_trailing_whitespace = false
 
 [Makefile]
 indent_style = tab
+
+# LICENSE is the canonical Mozilla MPL 2.0 text; don't reformat it (the
+# upstream copy carries trailing whitespace on a few continuation lines).
+[LICENSE]
+trim_trailing_whitespace = false
+insert_final_newline = unset

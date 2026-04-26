@@ -143,16 +143,31 @@ button:disabled {
 }
 
 .brand-floating .display-name {
+  /* The element is a <button> so it can toggle the welcome overlay; reset
+    the global `button { text-transform: uppercase; ... }` defaults so the
+    Daedalus name reads in mixed-case display type. The `help` cursor
+    advertises the click target as informational. */
+  background: transparent;
+  border: 0;
+  padding: 0;
   font-family: var(--font-display);
   font-weight: 400;
   font-size: 22px;
   line-height: 1;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--ink);
   margin-right: 8px;
-  cursor: default;
+  cursor: help;
   text-shadow:
     0 0 6px rgb(var(--ink-rgb) / 25%),
     0 0 14px rgb(var(--ink-rgb) / 12%);
+}
+
+.brand-floating .display-name:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 2px;
 }
 
 /* Slides in between display-name and version when the brand is hovered or
@@ -405,6 +420,23 @@ button:disabled {
   box-shadow:
     0 16px 56px rgb(var(--shadow-rgb) / 22%),
     0 2px 8px rgb(var(--shadow-rgb) / 12%);
+}
+
+/* Project-open variant: the same card floats over the canvas with a
+  scrim behind it. Sits above the toolbar/brand/path so a click-away on
+  any of those still counts as "outside". */
+.welcome-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(var(--shadow-rgb) / 35%);
+  z-index: 20;
+}
+
+.welcome-overlay-inner {
+  display: contents;
 }
 
 .welcome-header {

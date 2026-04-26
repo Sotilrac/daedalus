@@ -5,6 +5,7 @@ description = "D2-driven diagram editor"
 authors = ["Carlos Asmat <casmat@dephy.com>"]
 edition = "2021"
 rust-version = "1.77"
+license = "MPL-2.0"
 
 [lib]
 name = "daedalus_lib"
