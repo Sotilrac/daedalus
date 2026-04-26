@@ -26,11 +26,11 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: pnpm
@@ -42,7 +42,7 @@ jobs:
           targets: ${{ matrix.os == 'macos-14' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: Cache cargo build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -81,6 +81,11 @@ jobs:
           projectPath: packages/desktop
           tagName: ${{ github.ref_name }}
           releaseName: 'Daedalus ${{ github.ref_name }}'
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
+          # `projectPath` is a workspace package; pnpm-lock.yaml lives at the
+          # repo root, so the action's lockfile auto-detect doesn't see it
+          # and falls back to npm. Force pnpm explicitly so the existing
+          # `pnpm install --frozen-lockfile` step is what we build against.
+          tauriScript: pnpm tauri

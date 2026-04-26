@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "tauri": "tauri",
     "dev": "tauri dev",
     "build": "tauri build",
     "icons": "tauri icon ../web/public/icon.svg && cd src-tauri/icons && rm -f 32x32.png 64x64.png Square30x30Logo.png Square44x44Logo.png Square71x71Logo.png Square89x89Logo.png Square107x107Logo.png StoreLogo.png && find android -name '*.xml' -exec sh -c 'tail -c1 \"$1\" | grep -q . && printf \"\\n\" >> \"$1\"' _ {} \\;",
