@@ -24,6 +24,11 @@ import { compileD2 } from '@daedalus/shared/d2';
 import { snap } from '@daedalus/shared/layout';
 import { swapAt } from '@daedalus/shared/routing';
 
+// Cap on how many layouts we keep in the in-memory undo ring. Each layout
+// is small (a few KB of JSON-serialisable state), so 128 is generous and
+// well within typical session memory.
+const MAX_HISTORY = 128;
+
 export interface GraphState {
   model: Model | null;
   layout: Layout | null;
@@ -35,6 +40,16 @@ export interface GraphState {
   // True while the user is mid-gesture (dragging, resizing, moving an edge
   // anchor). Lets the persist layer hold off writes until the gesture ends.
   interacting: boolean;
+  // Undo/redo: snapshots of `layout`. `past` is oldest→newest; the most
+  // recent entry is the layout we'd revert to on undo. `future` is filled
+  // by undo and consumed by redo. A new mutation outside an undo path
+  // clears `future`.
+  past: Layout[];
+  future: Layout[];
+  // True once the current gesture has captured its pre-state into `past`.
+  // Lets a continuous drag emit a single history entry instead of one per
+  // pointer-move frame.
+  gestureSnapshotTaken: boolean;
   setInteracting(b: boolean): void;
   setViewOffset(o: { x: number; y: number }): void;
   loadFromCompile(opts: {
@@ -58,11 +73,30 @@ export interface GraphState {
   moveEdgeAnchor(node: NodeId, edgeId: EdgeId, toSide: Side, toIndex: number): Promise<void>;
   setTheme(theme: 'blueprint' | 'paper'): void;
   updateSettings(patch: SettingsPatch): Promise<void>;
+  undo(): Promise<void>;
+  redo(): Promise<void>;
 }
 
 export interface SettingsPatch {
   routing?: Partial<{ shapeBuffer: number; leadOut: number; nudging: number }>;
   export?: Partial<{ margin: number; showGrid: boolean }>;
+}
+
+// Capture the current layout into the undo stack and clear the redo stack.
+// During an active gesture (`interacting`), only the very first call within
+// that gesture pushes — the pre-drag layout — so a multi-frame drag stays
+// a single undo step.
+function snapshotForHistory(set: (p: Partial<GraphState>) => void, get: () => GraphState): void {
+  const s = get();
+  if (!s.layout) return;
+  if (s.interacting && s.gestureSnapshotTaken) return;
+  const past =
+    s.past.length >= MAX_HISTORY ? s.past.slice(s.past.length - MAX_HISTORY + 1) : s.past;
+  set({
+    past: [...past, s.layout],
+    future: [],
+    gestureSnapshotTaken: s.interacting ? true : false,
+  });
 }
 
 export const useGraphStore = create<GraphState>((set, get) => ({
@@ -74,9 +108,15 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   needsRelayout: false,
   viewOffset: { x: 0, y: 0 },
   interacting: false,
+  past: [],
+  future: [],
+  gestureSnapshotTaken: false,
   setInteracting(b) {
     if (get().interacting === b) return;
-    set({ interacting: b });
+    // Reset the per-gesture snapshot flag whenever interacting transitions.
+    // On false→true we'll lazily snapshot on the first real mutation; on
+    // true→false we clear the flag so the next gesture starts fresh.
+    set({ interacting: b, gestureSnapshotTaken: false });
   },
   setViewOffset(o) {
     set({ viewOffset: o });
@@ -108,7 +148,18 @@ export const useGraphStore = create<GraphState>((set, get) => ({
 
     const routes = await routeEdges(model, layout);
     const plan = buildRenderPlan({ model, layout, routes });
-    set({ model, layout, routes, plan, needsRelayout });
+    // External D2 changes invalidate prior history: undoing past a reload
+    // would reapply layout to a model that may not contain those nodes/edges.
+    set({
+      model,
+      layout,
+      routes,
+      plan,
+      needsRelayout,
+      past: [],
+      future: [],
+      gestureSnapshotTaken: false,
+    });
   },
 
   async relayout() {
@@ -125,6 +176,8 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     if (!model || !layout) return;
     const node = layout.nodes[id];
     if (!node) return;
+
+    snapshotForHistory(set, get);
 
     let sx = snap(x, layout.grid.size);
     let sy = snap(y, layout.grid.size);
@@ -162,6 +215,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   async moveNodes(updates) {
     const { model, layout } = get();
     if (!model || !layout) return;
+    snapshotForHistory(set, get);
     const grid = layout.grid.size;
     const allIds = Object.keys(layout.nodes);
     const updateSet = new Set(updates.map((u) => u.id));
@@ -251,6 +305,8 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     }
     if (sw === node.w && sh === node.h && nx === node.x && ny === node.y) return;
 
+    snapshotForHistory(set, get);
+
     const nextLayout: Layout = {
       ...layout,
       nodes: { ...layout.nodes, [id]: { ...node, x: nx, y: ny, w: sw, h: sh } },
@@ -296,6 +352,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     if (idx < 0) return;
 
     const swapped = swapAt(list, idx, offset);
+    snapshotForHistory(set, get);
     const nextLayout: Layout = {
       ...layout,
       nodes: {
@@ -338,6 +395,8 @@ export const useGraphStore = create<GraphState>((set, get) => ({
 
     const nextSides = isFrom ? { ...sides, fromSide: toSide } : { ...sides, toSide: toSide };
 
+    snapshotForHistory(set, get);
+
     const nextLayout: Layout = {
       ...layout,
       nodes: { ...layout.nodes, [nodeId]: { ...node, connections: nextConnections } },
@@ -360,6 +419,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   async updateSettings(patch) {
     const { model, layout } = get();
     if (!layout) return;
+    snapshotForHistory(set, get);
     const nextLayout: Layout = {
       ...layout,
       settings: {
@@ -386,6 +446,38 @@ export const useGraphStore = create<GraphState>((set, get) => ({
       const plan = buildRenderPlan({ model, layout: nextLayout, routes: get().routes });
       set({ layout: nextLayout, plan });
     }
+  },
+
+  async undo() {
+    const { model, layout, past, future } = get();
+    if (!layout || past.length === 0) return;
+    const prev = past[past.length - 1];
+    if (!prev) return;
+    const nextPast = past.slice(0, -1);
+    const nextFuture = [layout, ...future];
+    if (!model) {
+      set({ past: nextPast, future: nextFuture, layout: prev });
+      return;
+    }
+    const routes = await routeEdges(model, prev);
+    const plan = buildRenderPlan({ model, layout: prev, routes });
+    set({ past: nextPast, future: nextFuture, layout: prev, routes, plan });
+  },
+
+  async redo() {
+    const { model, layout, past, future } = get();
+    if (!layout || future.length === 0) return;
+    const next = future[0];
+    if (!next) return;
+    const nextPast = [...past, layout];
+    const nextFuture = future.slice(1);
+    if (!model) {
+      set({ past: nextPast, future: nextFuture, layout: next });
+      return;
+    }
+    const routes = await routeEdges(model, next);
+    const plan = buildRenderPlan({ model, layout: next, routes });
+    set({ past: nextPast, future: nextFuture, layout: next, routes, plan });
   },
 }));
 

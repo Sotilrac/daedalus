@@ -157,6 +157,29 @@ export function App(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Undo/redo keyboard shortcuts. Bound at the window level so they fire
+  // regardless of which canvas element has focus. Suppressed inside text
+  // inputs so future inline editing doesn't fight the editor history.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      const meta = e.metaKey || e.ctrlKey;
+      if (!meta) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      const k = e.key.toLowerCase();
+      if (k === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) void useGraphStore.getState().redo();
+        else void useGraphStore.getState().undo();
+      } else if (k === 'y') {
+        e.preventDefault();
+        void useGraphStore.getState().redo();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const onExportSvg = useCallback(async () => {
     if (!svgRef.current || !layout) return;
     const defaultPath = exportDefaultPath(rootPath, 'svg');
