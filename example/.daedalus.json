@@ -32,10 +32,10 @@
           "h": 736,
           "connections": {
             "top": [],
-            "right": [],
-            "bottom": [
+            "right": [
               "piedpiper->pipeline#0"
             ],
+            "bottom": [],
             "left": [
               "money.russ->piedpiper#0",
               "money.raviga->piedpiper#0",
@@ -44,7 +44,7 @@
           }
         },
         "piedpiper.founders": {
-          "x": 912,
+          "x": 944,
           "y": -2480,
           "w": 448,
           "h": 384,
@@ -56,7 +56,7 @@
           }
         },
         "piedpiper.founders.richard": {
-          "x": 1184,
+          "x": 1216,
           "y": -2272,
           "w": 160,
           "h": 96,
@@ -66,16 +66,15 @@
             ],
             "right": [],
             "bottom": [
+              "money.monica->piedpiper.founders.richard#0",
               "piedpiper.founders.richard->newinternet#0",
               "piedpiper.founders.richard->piedpiper.middleout#0"
             ],
-            "left": [
-              "money.monica->piedpiper.founders.richard#0"
-            ]
+            "left": []
           }
         },
         "piedpiper.founders.erlich": {
-          "x": 928,
+          "x": 960,
           "y": -2464,
           "w": 160,
           "h": 96,
@@ -91,7 +90,7 @@
           }
         },
         "piedpiper.founders.jared": {
-          "x": 1184,
+          "x": 1216,
           "y": -2448,
           "w": 160,
           "h": 96,
@@ -206,22 +205,23 @@
         },
         "pipeline": {
           "x": 1328,
-          "y": -1728,
+          "y": -1664,
           "w": 608,
-          "h": 800,
+          "h": 672,
           "connections": {
             "top": [],
-            "right": [],
-            "bottom": [],
-            "left": [
-              "piedpiper->pipeline#0",
+            "right": [
+              "piedpiper->pipeline#0"
+            ],
+            "bottom": [
               "pipeline->newinternet#0"
-            ]
+            ],
+            "left": []
           }
         },
         "pipeline.ingestor": {
           "x": 1488,
-          "y": -1680,
+          "y": -1616,
           "w": 128,
           "h": 96,
           "connections": {
@@ -237,56 +237,56 @@
         },
         "pipeline.weissman": {
           "x": 1696,
-          "y": -1680,
+          "y": -1616,
           "w": 128,
           "h": 96,
           "connections": {
             "top": [],
-            "right": [
+            "right": [],
+            "bottom": [
               "pipeline.weissman->pipeline.tiptotip#0"
             ],
-            "bottom": [],
             "left": [
               "pipeline.ingestor->pipeline.weissman#0"
             ]
           }
         },
         "pipeline.tiptotip": {
-          "x": 1664,
-          "y": -1520,
-          "w": 160,
+          "x": 1696,
+          "y": -1456,
+          "w": 128,
           "h": 96,
           "connections": {
-            "top": [],
-            "right": [
+            "top": [
               "pipeline.weissman->pipeline.tiptotip#0"
             ],
-            "bottom": [
+            "right": [],
+            "bottom": [],
+            "left": [
               "pipeline.tiptotip->pipeline.output#0"
-            ],
-            "left": []
+            ]
           }
         },
         "pipeline.output": {
-          "x": 1664,
-          "y": -1360,
+          "x": 1376,
+          "y": -1440,
           "w": 160,
           "h": 64,
           "connections": {
-            "top": [
+            "top": [],
+            "right": [
               "pipeline.tiptotip->pipeline.output#0"
             ],
-            "right": [],
             "bottom": [
-              "pipeline.output->pipeline.cache#0",
-              "pipeline.output->pipeline.blobstore#0"
+              "pipeline.output->pipeline.blobstore#0",
+              "pipeline.output->pipeline.cache#0"
             ],
             "left": []
           }
         },
         "pipeline.cache": {
-          "x": 1520,
-          "y": -1232,
+          "x": 1696,
+          "y": -1296,
           "w": 128,
           "h": 96,
           "connections": {
@@ -301,14 +301,14 @@
           }
         },
         "pipeline.blobstore": {
-          "x": 1664,
-          "y": -1088,
+          "x": 1376,
+          "y": -1168,
           "w": 160,
           "h": 128,
           "connections": {
             "top": [
-              "pipeline.cache->pipeline.blobstore#0",
-              "pipeline.output->pipeline.blobstore#0"
+              "pipeline.output->pipeline.blobstore#0",
+              "pipeline.cache->pipeline.blobstore#0"
             ],
             "right": [],
             "bottom": [
@@ -320,8 +320,8 @@
           }
         },
         "newinternet": {
-          "x": 592,
-          "y": -896,
+          "x": 672,
+          "y": -992,
           "w": 576,
           "h": 224,
           "connections": {
@@ -336,8 +336,8 @@
           }
         },
         "newinternet.phone": {
-          "x": 640,
-          "y": -848,
+          "x": 720,
+          "y": -944,
           "w": 160,
           "h": 128,
           "connections": {
@@ -350,8 +350,8 @@
           }
         },
         "newinternet.fridge": {
-          "x": 976,
-          "y": -848,
+          "x": 1056,
+          "y": -944,
           "w": 144,
           "h": 128,
           "connections": {
@@ -364,8 +364,8 @@
           }
         },
         "newinternet.condorcam": {
-          "x": 816,
-          "y": -848,
+          "x": 896,
+          "y": -944,
           "w": 144,
           "h": 128,
           "connections": {
@@ -426,7 +426,7 @@
           }
         },
         "hooli.nucleus": {
-          "x": 560,
+          "x": 528,
           "y": -1424,
           "w": 128,
           "h": 64,
@@ -444,7 +444,7 @@
           }
         },
         "hooli.hoolicloud": {
-          "x": 560,
+          "x": 528,
           "y": -1280,
           "w": 128,
           "h": 64,
@@ -458,8 +458,8 @@
           }
         },
         "hooli.hoolixyz": {
-          "x": 704,
-          "y": -1504,
+          "x": 720,
+          "y": -1408,
           "w": 96,
           "h": 64,
           "connections": {
@@ -467,10 +467,10 @@
               "hooli.gavin->hooli.hoolixyz#0",
               "seefood->hooli.hoolixyz#0"
             ],
-            "right": [],
-            "bottom": [
+            "right": [
               "hooli.hoolixyz->piedpiper.eng.bighead#0"
             ],
+            "bottom": [],
             "left": []
           }
         },
@@ -487,8 +487,8 @@
           }
         },
         "money.russ": {
-          "x": 448,
-          "y": -2240,
+          "x": 416,
+          "y": -2304,
           "w": 128,
           "h": 96,
           "connections": {
@@ -548,31 +548,31 @@
           }
         },
         "nothotdog": {
-          "x": 1056,
-          "y": -1104,
+          "x": 992,
+          "y": -1632,
           "w": 160,
           "h": 96,
           "connections": {
             "top": [
-              "nothotdog->seefood#0"
-            ],
-            "right": [
               "piedpiper.eng.bighead->nothotdog#0"
             ],
-            "bottom": [],
+            "right": [],
+            "bottom": [
+              "nothotdog->seefood#0"
+            ],
             "left": []
           }
         },
         "seefood": {
-          "x": 912,
-          "y": -1280,
+          "x": 992,
+          "y": -1456,
           "w": 160,
           "h": 64,
           "connections": {
-            "top": [],
-            "right": [
+            "top": [
               "nothotdog->seefood#0"
             ],
+            "right": [],
             "bottom": [],
             "left": [
               "seefood->hooli.hoolixyz#0"
@@ -636,12 +636,12 @@
           "toSide": "left"
         },
         "pipeline.weissman->pipeline.tiptotip#0": {
-          "fromSide": "right",
-          "toSide": "right"
-        },
-        "pipeline.tiptotip->pipeline.output#0": {
           "fromSide": "bottom",
           "toSide": "top"
+        },
+        "pipeline.tiptotip->pipeline.output#0": {
+          "fromSide": "left",
+          "toSide": "right"
         },
         "pipeline.output->pipeline.cache#0": {
           "fromSide": "bottom",
@@ -656,11 +656,11 @@
           "toSide": "top"
         },
         "piedpiper->pipeline#0": {
-          "fromSide": "bottom",
-          "toSide": "left"
+          "fromSide": "right",
+          "toSide": "right"
         },
         "pipeline->newinternet#0": {
-          "fromSide": "left",
+          "fromSide": "bottom",
           "toSide": "right"
         },
         "piedpiper.founders.richard->newinternet#0": {
@@ -704,7 +704,7 @@
           "toSide": "top"
         },
         "hooli.hoolixyz->piedpiper.eng.bighead#0": {
-          "fromSide": "bottom",
+          "fromSide": "right",
           "toSide": "left"
         },
         "money.russ->piedpiper#0": {
@@ -725,7 +725,7 @@
         },
         "money.monica->piedpiper.founders.richard#0": {
           "fromSide": "bottom",
-          "toSide": "left"
+          "toSide": "bottom"
         },
         "money.raviga->hooli#0": {
           "fromSide": "bottom",
@@ -737,11 +737,11 @@
         },
         "piedpiper.eng.bighead->nothotdog#0": {
           "fromSide": "bottom",
-          "toSide": "right"
+          "toSide": "top"
         },
         "nothotdog->seefood#0": {
-          "fromSide": "top",
-          "toSide": "right"
+          "fromSide": "bottom",
+          "toSide": "top"
         },
         "seefood->hooli.hoolixyz#0": {
           "fromSide": "left",
