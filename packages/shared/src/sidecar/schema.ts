@@ -63,7 +63,7 @@ export const sidecarSchema: JSONSchemaType<{ entries: Record<string, Layout> }> 
               zoom: { type: 'number' },
               panX: { type: 'number' },
               panY: { type: 'number' },
-              theme: { type: 'string', enum: ['blueprint', 'paper'] },
+              theme: { type: 'string', enum: ['slate', 'paper'] },
             },
             required: ['zoom', 'panX', 'panY', 'theme'],
             additionalProperties: false,

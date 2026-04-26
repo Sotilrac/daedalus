@@ -16,7 +16,7 @@ function baseLayout(): Layout {
   return {
     version: 1,
     grid: { size: 16, cols: 80, rows: 50 },
-    viewport: { zoom: 1, panX: 0, panY: 0, theme: 'blueprint' },
+    viewport: { zoom: 1, panX: 0, panY: 0, theme: 'slate' },
     settings: {
       routing: { shapeBuffer: 16, leadOut: 16, nudging: 16 },
       export: { margin: 16, showGrid: false },

@@ -1,7 +1,64 @@
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-sans-400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-sans-500.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-sans-600.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-mono-400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-mono-500.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-mono-600.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Dela Gothic One';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/DelaGothicOne-Regular.ttf') format('truetype');
+}
+
 :root {
   --paper: #2b2b2b;
   --paper-sunk: #1f1f1f;
   --ink: #dcdcdc;
+  --ink-rgb: 220 220 220;
   --ink-muted: #888;
   --accent: #fa4;
   --mark: #fa4;
@@ -11,17 +68,27 @@
   --shadow-rgb: 0 0 0;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', 'Menlo', monospace;
   --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'BlinkMacSystemFont', sans-serif;
+  --font-display: 'Dela Gothic One', 'IBM Plex Sans', system-ui, sans-serif;
   --radius: 2px;
+
+  /* Single source of truth for toolbar icon size. Change here and every
+    icon in the app resizes. */
+  --icon-size: 16px;
+
+  color-scheme: dark;
 }
 
 [data-theme='paper'] {
   --paper: #faf7f2;
   --paper-sunk: #efeae0;
   --ink: #1a2238;
+  --ink-rgb: 26 34 56;
   --ink-muted: #5a6378;
   --accent: #c2410c;
   --mark: #c2410c;
   --positive: #3f6d4e;
   --negative: #8c3a2e;
   --grid-dot: #a8b0bf;
+
+  color-scheme: light;
 }

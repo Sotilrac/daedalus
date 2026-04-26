@@ -153,7 +153,7 @@ export function buildLayoutFromRaw({ raw, grid, prev }: BuildLayoutInput): Layou
   return {
     version: 1,
     grid: fittedGrid,
-    viewport: prev?.viewport ?? { zoom: 1, panX: 0, panY: 0, theme: 'blueprint' },
+    viewport: prev?.viewport ?? { zoom: 1, panX: 0, panY: 0, theme: 'slate' },
     settings: prev?.settings ?? defaultSettings(),
     nodes,
     edges: edgeSides,

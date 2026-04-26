@@ -79,10 +79,11 @@ export interface GraphState {
   clearSelection(): void;
   swapAnchor(node: NodeId, side: Side, edgeId: EdgeId, offset: number): Promise<void>;
   moveEdgeAnchor(node: NodeId, edgeId: EdgeId, toSide: Side, toIndex: number): Promise<void>;
-  setTheme(theme: 'blueprint' | 'paper'): void;
+  setTheme(theme: 'slate' | 'paper'): void;
   updateSettings(patch: SettingsPatch): Promise<void>;
   undo(): Promise<void>;
   redo(): Promise<void>;
+  closeProject(): void;
 }
 
 export interface SettingsPatch {
@@ -495,6 +496,25 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     const routes = await routeEdges(model, next);
     const plan = buildRenderPlan({ model, layout: next, routes });
     set({ past: nextPast, future: nextFuture, layout: next, routes, plan });
+  },
+
+  closeProject() {
+    set({
+      model: null,
+      layout: null,
+      routes: {},
+      plan: null,
+      selection: [],
+      needsRelayout: false,
+      viewOffset: { x: 0, y: 0 },
+      interacting: false,
+      past: [],
+      future: [],
+      gestureSnapshotTaken: false,
+      autoLayout: null,
+      manualStash: null,
+      showingAuto: false,
+    });
   },
 
   async toggleAutoLayout() {

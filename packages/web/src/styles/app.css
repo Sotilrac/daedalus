@@ -15,6 +15,7 @@ body,
   font-feature-settings: 'tnum' 1;
 }
 
+html,
 body {
   overflow: hidden;
 }
@@ -46,9 +47,9 @@ button:disabled {
 }
 
 .app {
-  display: grid;
-  grid-template-rows: auto 1fr;
+  position: relative;
   height: 100%;
+  overflow: hidden;
 
   /* `data-theme` on .app overrides the CSS variables for its descendants,
       but the color/background declared on html/body/#root already resolved
@@ -59,44 +60,246 @@ button:disabled {
 }
 
 .toolbar {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--ink-muted);
+  gap: 4px;
+  padding: 8px 6px;
+  border: 1px solid var(--ink-muted);
+  border-radius: var(--radius);
   background: var(--paper-sunk);
   font-family: var(--font-mono);
   font-size: 12px;
+  z-index: 6;
+  box-shadow: 0 4px 16px rgb(var(--shadow-rgb) / 18%);
 }
 
-.toolbar .title {
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+.toolbar-divider {
+  width: 60%;
+  height: 1px;
+  background: var(--ink-muted);
+  opacity: 0.4;
+  margin: 4px 0;
 }
 
-.toolbar .title .version {
-  margin-left: 6px;
+.icon-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  background: transparent;
   color: var(--ink-muted);
-  font-weight: 400;
-  letter-spacing: 0;
+  border-radius: var(--radius);
+  cursor: pointer;
   text-transform: none;
+  letter-spacing: 0;
+  transition:
+    color 0.12s,
+    background 0.12s,
+    border-color 0.12s;
 }
 
-.toolbar .spacer {
-  flex: 1;
+.icon-btn svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+  flex: none;
 }
 
-.toolbar .path {
+.icon-btn:hover:not(:disabled) {
+  color: var(--accent);
+  background: rgb(var(--ink-rgb) / 6%);
+  border-color: transparent;
+}
+
+.icon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
   color: var(--ink-muted);
-  max-width: 50ch;
+  border-color: transparent;
+}
+
+.icon-btn[aria-pressed='true'] {
+  color: var(--accent);
+  background: rgb(var(--ink-rgb) / 10%);
+}
+
+.icon-btn[data-attention] {
+  color: var(--accent);
+}
+
+.brand-floating {
+  position: absolute;
+  bottom: 18px;
+  left: 72px; /* clear toolbar (12 left + ~44 wide + 16 gap) */
+  display: inline-flex;
+  align-items: baseline;
+  z-index: 5;
+}
+
+.brand-floating .display-name {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--ink);
+  margin-right: 8px;
+  cursor: default;
+  text-shadow:
+    0 0 6px rgb(var(--ink-rgb) / 25%),
+    0 0 14px rgb(var(--ink-rgb) / 12%);
+}
+
+/* Slides in between display-name and version when the brand is hovered or
+  keyboard-focused. Animates max-width + margin together so the version
+  shifts smoothly to make room. */
+.brand-floating .author {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-muted);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  max-width: 0;
+  margin-right: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition:
+    max-width 640ms cubic-bezier(0.16, 1, 0.3, 1),
+    margin-right 640ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 440ms ease 120ms;
+}
+
+.brand-floating .display-name:hover ~ .author,
+.brand-floating .display-name:focus-visible ~ .author,
+.brand-floating .author:hover {
+  max-width: 22ch;
+  margin-right: 8px;
+  opacity: 1;
+}
+
+.brand-floating .version {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-muted);
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  transition: color 0.12s ease;
+}
+
+.brand-floating .version:hover,
+.brand-floating .version:focus-visible {
+  color: var(--accent);
+  text-decoration: underline;
+  outline: none;
+}
+
+.path-floating {
+  position: absolute;
+  bottom: 18px;
+  right: 18px;
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--ink-muted);
+  background: var(--paper);
+  padding: 3px 10px;
+  border-radius: 999px;
+  max-width: min(60ch, calc(100% - 240px));
+  overflow: hidden;
+  white-space: nowrap;
+  z-index: 5;
+  box-shadow:
+    0 0 8px 2px rgb(var(--ink-rgb) / 22%),
+    0 0 22px 6px rgb(var(--ink-rgb) / 10%);
+  transition: max-width 640ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.path-floating:hover,
+.path-floating:focus-within {
+  max-width: calc(100% - 36px);
+}
+
+.path-floating .path-text {
+  flex: 0 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.path-floating .path-prefix {
+  flex: 0 0 auto;
+  display: inline-block;
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  white-space: pre;
+  color: var(--ink);
+  transition:
+    max-width 640ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 440ms ease 120ms;
+}
+
+.path-floating:hover .path-prefix,
+.path-floating:focus-within .path-prefix {
+  max-width: 14ch;
+  opacity: 1;
+}
+
+/* Close-project pill on the right end. Slides in on hover/focus, mirrors
+  the prefix's slot animation but uses --negative for the iconography. */
+.path-floating .path-close {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 0;
+  width: 0;
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--negative);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: none;
+  border-radius: 999px;
+  opacity: 0;
+  overflow: hidden;
+  cursor: pointer;
+  transition:
+    width 640ms cubic-bezier(0.16, 1, 0.3, 1),
+    margin-left 640ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 440ms ease 120ms,
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.path-floating:hover .path-close,
+.path-floating:focus-within .path-close {
+  width: 18px;
+  margin-left: 6px;
+  opacity: 1;
+}
+
+.path-floating .path-close:hover,
+.path-floating .path-close:focus-visible {
+  background: rgb(var(--ink-rgb) / 8%);
+  color: var(--negative);
+  outline: none;
 }
 
 .canvas-host {
-  position: relative;
+  position: absolute;
+  inset: 0;
   overflow: auto;
   background: var(--paper);
 
@@ -108,13 +311,6 @@ button:disabled {
 
 .canvas-host svg {
   display: block;
-}
-
-/* The canvas wrapper inside the export-ref div needs to fill the host. */
-.canvas-host > div,
-.canvas-fill {
-  width: 100%;
-  height: 100%;
 }
 
 .banner {
@@ -185,24 +381,121 @@ button:disabled {
   display: grid;
   place-items: center;
   height: 100%;
+  padding: 24px;
+  font-family: var(--font-sans);
+  color: var(--ink);
+  background-color: var(--paper);
+  background-image: radial-gradient(circle, var(--grid-dot) 1.2px, transparent 1.5px);
+  background-size: 16px 16px;
+}
+
+.welcome-card {
+  display: grid;
+  gap: 20px;
+  width: min(520px, 100%);
+  padding: 28px 32px 32px;
+  background: var(--paper-sunk);
+  border: 1px solid var(--ink-muted);
+  border-radius: var(--radius);
+  box-shadow:
+    0 16px 56px rgb(var(--shadow-rgb) / 22%),
+    0 2px 8px rgb(var(--shadow-rgb) / 12%);
+}
+
+.welcome-header {
+  display: grid;
+  gap: 6px;
   text-align: center;
+}
+
+.welcome-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 56px;
+  line-height: 1;
+  color: var(--ink);
+  letter-spacing: 0;
+}
+
+.welcome-tagline {
+  margin: 0;
   font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
   color: var(--ink-muted);
 }
 
-.empty-state h1 {
-  font-family: var(--font-mono);
-  font-weight: 500;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--ink);
-  margin-bottom: 8px;
-  font-size: 28px;
+.welcome-card section {
+  display: grid;
+  gap: 8px;
 }
 
-.empty-state p {
-  margin: 0 0 16px;
-  max-width: 50ch;
+.welcome-card h2 {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.welcome-card p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.welcome-features {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.welcome-features li {
+  display: flex;
+  gap: 10px;
+}
+
+.welcome-features li::before {
+  content: '→';
+  color: var(--accent);
+  flex: none;
+  font-family: var(--font-mono);
+}
+
+.welcome-footer {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid rgb(var(--ink-rgb) / 12%);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--ink-muted);
+}
+
+.welcome-footer a {
+  color: var(--ink-muted);
+  text-decoration: none;
+  transition: color 0.12s ease;
+}
+
+.welcome-footer a:hover,
+.welcome-footer a:focus-visible {
+  color: var(--accent);
+  text-decoration: underline;
+  outline: none;
 }
 
 .node {
@@ -222,10 +515,11 @@ button:disabled {
 
 .anchor {
   cursor: pointer;
+  opacity: 0.6;
 }
 
 .anchor.ghost {
-  opacity: 0.6;
+  opacity: 0.95;
 }
 
 .selection-box {
@@ -238,9 +532,8 @@ button:disabled {
 
 .settings-panel {
   position: absolute;
-  top: 100%;
-  right: 12px;
-  margin-top: 6px;
+  left: calc(100% + 8px);
+  bottom: 0;
   background: var(--paper-sunk);
   border: 1px solid var(--ink-muted);
   border-radius: var(--radius);
@@ -252,6 +545,7 @@ button:disabled {
   gap: 12px;
   min-width: 240px;
   z-index: 20;
+  box-shadow: 0 4px 16px rgb(var(--shadow-rgb) / 18%);
 }
 
 .settings-panel h3 {
@@ -297,6 +591,13 @@ button:disabled {
   border: 1px solid var(--ink-muted);
   border-radius: var(--radius);
   padding: 2px 6px;
+}
+
+/* Native dropdown popup colours track the OS unless we set them on the
+  options themselves; without this the dark theme shows pale-on-pale. */
+.settings-panel select option {
+  background: var(--paper);
+  color: var(--ink);
 }
 
 .toolbar-wrap {

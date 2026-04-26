@@ -9,8 +9,8 @@ export interface SettingsPanelProps {
   onShowGridChange: (v: boolean) => void;
   showAnchors: boolean;
   onShowAnchorsChange: (v: boolean) => void;
-  theme: 'blueprint' | 'paper';
-  onThemeChange: (t: 'blueprint' | 'paper') => void;
+  theme: 'slate' | 'paper';
+  onThemeChange: (t: 'slate' | 'paper') => void;
 }
 
 export function SettingsPanel({
@@ -27,23 +27,22 @@ export function SettingsPanel({
 }: SettingsPanelProps): JSX.Element | null {
   const layout = useGraphStore((s) => s.layout);
   const updateSettings = useGraphStore((s) => s.updateSettings);
-  if (!layout) return null;
-  const { routing, export: ex } = layout.settings;
+  // Display / Source / Developer settings are user prefs and work without a
+  // project loaded. Routing / Export require a layout to mutate, so they
+  // only render when a project is open.
+  const projectSettings = layout?.settings;
 
   return (
     <div className="settings-panel" role="dialog" aria-label="Settings">
       <section>
         <h3>Display</h3>
-        <label
-          className="row"
-          title="Switch between the blueprint (dark) and paper (light) palettes."
-        >
+        <label className="row" title="Switch between the slate (dark) and paper (light) palettes.">
           <span>Theme</span>
           <select
             value={theme}
-            onChange={(e) => onThemeChange(e.target.value as 'blueprint' | 'paper')}
+            onChange={(e) => onThemeChange(e.target.value as 'slate' | 'paper')}
           >
-            <option value="blueprint">Blueprint</option>
+            <option value="slate">Slate</option>
             <option value="paper">Paper</option>
           </select>
         </label>
@@ -81,52 +80,56 @@ export function SettingsPanel({
           <span>Auto-reload on D2 change</span>
         </label>
       </section>
-      <section>
-        <h3>Routing</h3>
-        <NumberRow
-          label="Shape buffer"
-          help="Clearance kept around each shape."
-          value={routing.shapeBuffer}
-          min={0}
-          max={64}
-          onChange={(v) => void updateSettings({ routing: { shapeBuffer: v } })}
-        />
-        <NumberRow
-          label="Lead-out"
-          help="How far edges leave a side perpendicular before bending."
-          value={routing.leadOut}
-          min={0}
-          max={64}
-          onChange={(v) => void updateSettings({ routing: { leadOut: v } })}
-        />
-        <NumberRow
-          label="Nudging"
-          help="Ideal gap between parallel edge segments."
-          value={routing.nudging}
-          min={0}
-          max={64}
-          onChange={(v) => void updateSettings({ routing: { nudging: v } })}
-        />
-      </section>
-      <section>
-        <h3>Export</h3>
-        <NumberRow
-          label="Margin"
-          help="Padding around the diagram bounding box."
-          value={ex.margin}
-          min={0}
-          max={200}
-          onChange={(v) => void updateSettings({ export: { margin: v } })}
-        />
-        <label className="row checkbox">
-          <input
-            type="checkbox"
-            checked={ex.showGrid}
-            onChange={(e) => void updateSettings({ export: { showGrid: e.target.checked } })}
-          />
-          <span>Include grid</span>
-        </label>
-      </section>
+      {projectSettings && (
+        <>
+          <section>
+            <h3>Routing</h3>
+            <NumberRow
+              label="Shape buffer"
+              help="Clearance kept around each shape."
+              value={projectSettings.routing.shapeBuffer}
+              min={0}
+              max={64}
+              onChange={(v) => void updateSettings({ routing: { shapeBuffer: v } })}
+            />
+            <NumberRow
+              label="Lead-out"
+              help="How far edges leave a side perpendicular before bending."
+              value={projectSettings.routing.leadOut}
+              min={0}
+              max={64}
+              onChange={(v) => void updateSettings({ routing: { leadOut: v } })}
+            />
+            <NumberRow
+              label="Nudging"
+              help="Ideal gap between parallel edge segments."
+              value={projectSettings.routing.nudging}
+              min={0}
+              max={64}
+              onChange={(v) => void updateSettings({ routing: { nudging: v } })}
+            />
+          </section>
+          <section>
+            <h3>Export</h3>
+            <NumberRow
+              label="Margin"
+              help="Padding around the diagram bounding box."
+              value={projectSettings.export.margin}
+              min={0}
+              max={200}
+              onChange={(v) => void updateSettings({ export: { margin: v } })}
+            />
+            <label className="row checkbox">
+              <input
+                type="checkbox"
+                checked={projectSettings.export.showGrid}
+                onChange={(e) => void updateSettings({ export: { showGrid: e.target.checked } })}
+              />
+              <span>Include grid</span>
+            </label>
+          </section>
+        </>
+      )}
       <section>
         <h3>Developer</h3>
         <label

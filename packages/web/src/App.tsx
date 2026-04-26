@@ -6,6 +6,19 @@ import { readAllD2 } from './sources/loadFolder.js';
 import { Canvas } from './editor/Canvas.js';
 import { ErrorOverlay } from './editor/ErrorOverlay.js';
 import { SettingsPanel } from './editor/SettingsPanel.js';
+import {
+  CenterIcon,
+  CompareIcon,
+  CopyIcon,
+  ExportPngIcon,
+  ExportSvgIcon,
+  FolderOpenIcon,
+  RedoIcon,
+  ReloadIcon,
+  RelayoutIcon,
+  SettingsIcon,
+  UndoIcon,
+} from './editor/icons.js';
 import { normalizeD2Error } from '@daedalus/shared/d2';
 import {
   emptySidecar,
@@ -34,19 +47,39 @@ export function App(): JSX.Element {
 
   const layout = useGraphStore((s) => s.layout);
   const needsRelayout = useGraphStore((s) => s.needsRelayout);
-  const setTheme = useGraphStore((s) => s.setTheme);
+  const setStoreTheme = useGraphStore((s) => s.setTheme);
   const showingAuto = useGraphStore((s) => s.showingAuto);
   const autoLayout = useGraphStore((s) => s.autoLayout);
   const toggleAutoLayout = useGraphStore((s) => s.toggleAutoLayout);
+  const canUndo = useGraphStore((s) => s.past.length > 0);
+  const canRedo = useGraphStore((s) => s.future.length > 0);
+  const undo = useGraphStore((s) => s.undo);
+  const redo = useGraphStore((s) => s.redo);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [autoReload, setAutoReload] = useState<boolean>(recallAutoReload);
   const [allowContextMenu, setAllowContextMenu] = useState<boolean>(recallAllowContextMenu);
   const [showGrid, setShowGrid] = useState<boolean>(recallShowGrid);
   const [showAnchors, setShowAnchors] = useState<boolean>(recallShowAnchors);
+  // Theme is a user-level preference (persisted via localStorage), not a
+  // per-project property — that way it can be changed on the empty/home
+  // page where there's no layout to mutate. When a project is loaded we
+  // sync the user's pref into `layout.viewport.theme` so the sidecar stays
+  // consistent for backwards compatibility.
+  const [theme, setThemeState] = useState<'slate' | 'paper'>(recallTheme);
+  const setTheme = useCallback(
+    (t: 'slate' | 'paper') => {
+      setThemeState(t);
+      setStoreTheme(t);
+    },
+    [setStoreTheme],
+  );
 
   const svgRef = useRef<SVGSVGElement | null>(null);
   const hostRef = useRef<HTMLElement | null>(null);
+  // Wraps the Settings button + popout panel so an outside click can close
+  // the panel without dismissing it when the user interacts inside it.
+  const settingsWrapRef = useRef<HTMLSpanElement | null>(null);
   // The most recent layout we wrote; used to skip the next persist if state
   // came back unchanged (e.g. just after a sidecar read).
   const lastPersistedRef = useRef<unknown>(null);
@@ -83,6 +116,44 @@ export function App(): JSX.Element {
       localStorage.setItem(SHOW_ANCHORS_KEY, String(showAnchors));
     }
   }, [showAnchors]);
+
+  useEffect(() => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(THEME_KEY, theme);
+    }
+  }, [theme]);
+
+  // Dismiss the settings popout on outside-click or Escape. Only attached
+  // while the panel is open so the listener doesn't sit on document for
+  // the lifetime of the app.
+  useEffect(() => {
+    if (!settingsOpen) return undefined;
+    const onPointer = (e: MouseEvent): void => {
+      const wrap = settingsWrapRef.current;
+      if (!wrap) return;
+      if (e.target instanceof Node && wrap.contains(e.target)) return;
+      setSettingsOpen(false);
+    };
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setSettingsOpen(false);
+    };
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [settingsOpen]);
+
+  // Whenever a project loads (layout transitions from null → some), force
+  // the sidecar's theme to match the user's current preference. The user
+  // pref is the source of truth; this just keeps the persisted layout in
+  // sync so we don't write back stale values on the next save.
+  useEffect(() => {
+    if (!layout) return;
+    if (layout.viewport.theme === theme) return;
+    setStoreTheme(theme);
+  }, [layout, theme, setStoreTheme]);
 
   // Load D2 files + sidecar, recompile, reconcile. Reads the latest model
   // from the store at call time. Returned promise resolves once the load
@@ -285,6 +356,15 @@ export function App(): JSX.Element {
     rememberExportDir(finalPath);
   }, [rootPath, layout]);
 
+  const onCloseProject = useCallback(() => {
+    if (typeof localStorage !== 'undefined') localStorage.removeItem(LAST_FOLDER_KEY);
+    setSource(null);
+    setFiles({});
+    setErrors([]);
+    useGraphStore.getState().closeProject();
+    lastPersistedRef.current = null;
+  }, [setSource, setFiles, setErrors]);
+
   const onCopyPng = useCallback(async () => {
     if (!svgRef.current || !layout) return;
     try {
@@ -304,21 +384,77 @@ export function App(): JSX.Element {
   }, [layout, setErrors]);
 
   return (
-    <div className="app" data-theme={layout?.viewport.theme ?? 'blueprint'}>
-      <header className="toolbar">
-        <span className="title">
-          Daedalus <span className="version">v{__APP_VERSION__}</span>
-        </span>
-        <span className="path">{rootPath ?? 'no folder open'}</span>
-        <span className="spacer" />
-        {needsRelayout && <span style={{ color: 'var(--accent)' }}>Layout out of sync</span>}
-        <button onClick={() => void onPickFolder()}>Open folder</button>
+    <div className="app" data-theme={theme}>
+      <nav className="toolbar" aria-label="Toolbar">
+        <button
+          className="icon-btn"
+          onClick={() => void onPickFolder()}
+          title="Open folder"
+          aria-label="Open folder"
+        >
+          <FolderOpenIcon />
+        </button>
         {!autoReload && (
-          <button onClick={() => void reload({ recenter: false })} disabled={!source}>
-            Reload D2
+          <button
+            className="icon-btn"
+            onClick={() => void reload({ recenter: false })}
+            disabled={!source}
+            title="Reload D2"
+            aria-label="Reload D2"
+          >
+            <ReloadIcon />
           </button>
         )}
+        <span className="toolbar-divider" aria-hidden />
         <button
+          className="icon-btn"
+          onClick={() => void undo()}
+          disabled={!canUndo || showingAuto}
+          title="Undo (Cmd/Ctrl+Z)"
+          aria-label="Undo"
+        >
+          <UndoIcon />
+        </button>
+        <button
+          className="icon-btn"
+          onClick={() => void redo()}
+          disabled={!canRedo || showingAuto}
+          title="Redo (Cmd/Ctrl+Shift+Z)"
+          aria-label="Redo"
+        >
+          <RedoIcon />
+        </button>
+        <span className="toolbar-divider" aria-hidden />
+        <button
+          className="icon-btn"
+          onClick={onCenter}
+          disabled={!layout}
+          title="Center view"
+          aria-label="Center view"
+        >
+          <CenterIcon />
+        </button>
+        <button
+          className="icon-btn"
+          onClick={() => {
+            void (async () => {
+              await toggleAutoLayout();
+              onCenter();
+            })();
+          }}
+          disabled={!autoLayout || !layout}
+          aria-pressed={showingAuto}
+          title={
+            showingAuto
+              ? 'Showing engine layout (click to return to edits)'
+              : 'Compare against engine layout'
+          }
+          aria-label="Toggle engine layout"
+        >
+          <CompareIcon />
+        </button>
+        <button
+          className="icon-btn"
           onClick={() => {
             if (!source) return;
             void (async () => {
@@ -326,7 +462,6 @@ export function App(): JSX.Element {
               try {
                 const files = await readAllD2(source);
                 setFiles(files);
-                // prev=null forces a fresh ELK pass; reconcile is skipped.
                 await useGraphStore.getState().loadFromCompile({
                   files,
                   inputPath: entryPath,
@@ -343,49 +478,50 @@ export function App(): JSX.Element {
             })();
           }}
           disabled={!source}
+          title={needsRelayout ? 'Relayout (out of sync)' : 'Relayout'}
+          aria-label="Relayout"
+          data-attention={needsRelayout || undefined}
         >
-          Relayout
+          <RelayoutIcon />
         </button>
+        <span className="toolbar-divider" aria-hidden />
         <button
-          onClick={() => {
-            void (async () => {
-              await toggleAutoLayout();
-              onCenter();
-            })();
-          }}
-          disabled={!autoLayout || !layout}
-          aria-pressed={showingAuto}
-          title={
-            showingAuto
-              ? 'Showing the engine layout. Click to return to your edits.'
-              : 'Compare against the latest auto layout.'
-          }
-        >
-          {showingAuto ? 'Show edits' : 'Show auto'}
-        </button>
-        <button onClick={onCenter} disabled={!layout}>
-          Center
-        </button>
-        <button onClick={() => void onExportSvg()} disabled={!layout}>
-          Export SVG
-        </button>
-        <button onClick={() => void onExportPng()} disabled={!layout}>
-          Export PNG
-        </button>
-        <button
+          className="icon-btn"
           onClick={() => void onCopyPng()}
           disabled={!layout}
-          title="Copy a PNG of the diagram to the clipboard."
+          title="Copy PNG to clipboard"
+          aria-label="Copy PNG to clipboard"
         >
-          Copy PNG
+          <CopyIcon />
         </button>
-        <span className="toolbar-wrap">
+        <button
+          className="icon-btn"
+          onClick={() => void onExportSvg()}
+          disabled={!layout}
+          title="Export SVG"
+          aria-label="Export SVG"
+        >
+          <ExportSvgIcon />
+        </button>
+        <button
+          className="icon-btn"
+          onClick={() => void onExportPng()}
+          disabled={!layout}
+          title="Export PNG"
+          aria-label="Export PNG"
+        >
+          <ExportPngIcon />
+        </button>
+        <span className="toolbar-divider" aria-hidden />
+        <span className="toolbar-wrap" ref={settingsWrapRef}>
           <button
+            className="icon-btn"
             onClick={() => setSettingsOpen((o) => !o)}
-            disabled={!layout}
             aria-pressed={settingsOpen}
+            title="Settings"
+            aria-label="Settings"
           >
-            Settings
+            <SettingsIcon />
           </button>
           {settingsOpen && (
             <SettingsPanel
@@ -397,12 +533,12 @@ export function App(): JSX.Element {
               onShowGridChange={setShowGrid}
               showAnchors={showAnchors}
               onShowAnchorsChange={setShowAnchors}
-              theme={layout?.viewport.theme ?? 'blueprint'}
+              theme={theme}
               onThemeChange={setTheme}
             />
           )}
         </span>
-      </header>
+      </nav>
       <main
         className="canvas-host"
         ref={hostRef}
@@ -414,9 +550,45 @@ export function App(): JSX.Element {
       >
         {!source && (
           <div className="empty-state">
-            <h1>Daedalus</h1>
-            <p>Open a folder of .d2 files to begin. Layout is saved alongside as .daedalus.json.</p>
-            <button onClick={() => void onPickFolder()}>Open folder</button>
+            <article className="welcome-card">
+              <header className="welcome-header">
+                <h1 className="welcome-name">Δαίδαλος</h1>
+                <p className="welcome-tagline">Customizable layout for D2</p>
+              </header>
+              <section>
+                <h2>Get started</h2>
+                <p>
+                  Open a folder of .d2 files to begin. Layout is saved alongside as .daedalus.json.
+                  D2 file changes are tracked live.
+                </p>
+              </section>
+              <section>
+                <h2>What you can do</h2>
+                <ul className="welcome-features">
+                  <li>Move connections to any side of a node</li>
+                  <li>Drag, drop, and resize nodes on the grid</li>
+                  <li>Export to SVG or PNG when you&apos;re done</li>
+                  <li>Adjust routing, display, and theme in Settings</li>
+                </ul>
+              </section>
+              <footer className="welcome-footer">
+                <a
+                  href="https://github.com/Sotilrac/daedalus/releases"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="View releases on GitHub"
+                >
+                  v{__APP_VERSION__}
+                </a>
+                <a
+                  href="https://gitlab.com/sotilrac/daedalus"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Source on GitLab
+                </a>
+              </footer>
+            </article>
           </div>
         )}
         <ErrorOverlay errors={errors} onDismiss={() => setErrors([])} />
@@ -427,6 +599,38 @@ export function App(): JSX.Element {
           showAnchors={showAnchors}
         />
       </main>
+      {source && (
+        <div className="brand-floating">
+          <span className="display-name">Δαίδαλος</span>
+          <span className="author" aria-hidden>
+            by Carlos Asmat
+          </span>
+          <a
+            className="version"
+            href="https://github.com/Sotilrac/daedalus/releases"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="View releases on GitHub"
+          >
+            v{__APP_VERSION__}
+          </a>
+        </div>
+      )}
+      {rootPath && (
+        <div className="path-floating">
+          <span className="path-prefix">Project:&nbsp;</span>
+          <span className="path-text">{rootPath}</span>
+          <button
+            type="button"
+            className="path-close"
+            aria-label="Close project"
+            title="Close project"
+            onClick={onCloseProject}
+          >
+            ×
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -511,6 +715,7 @@ const AUTO_RELOAD_KEY = 'daedalus.autoReload';
 const ALLOW_CTX_KEY = 'daedalus.allowContextMenu';
 const SHOW_GRID_KEY = 'daedalus.showGrid';
 const SHOW_ANCHORS_KEY = 'daedalus.showAnchors';
+const THEME_KEY = 'daedalus.theme';
 
 function recallAutoReload(): boolean {
   if (typeof localStorage === 'undefined') return true;
@@ -533,6 +738,12 @@ function recallShowAnchors(): boolean {
   if (typeof localStorage === 'undefined') return true;
   const v = localStorage.getItem(SHOW_ANCHORS_KEY);
   return v === null ? true : v === 'true';
+}
+
+function recallTheme(): 'slate' | 'paper' {
+  if (typeof localStorage === 'undefined') return 'slate';
+  const v = localStorage.getItem(THEME_KEY);
+  return v === 'paper' ? 'paper' : 'slate';
 }
 
 function rememberFolder(path: string): void {

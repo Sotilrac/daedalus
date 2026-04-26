@@ -33,6 +33,18 @@ export const Canvas = forwardRef<SVGSVGElement, CanvasProps>(function Canvas(
   const layout = useGraphStore((s) => s.layout);
   const viewOffset = useGraphStore((s) => s.viewOffset);
   const clearSelection = useGraphStore((s) => s.clearSelection);
+  const hasSelection = useGraphStore((s) => s.selection.length > 0);
+
+  // Pan-on-blank: drag blank canvas space to scroll the host. State is held in
+  // refs (no re-renders) and pointer capture keeps the gesture alive even if
+  // the cursor leaves the SVG mid-drag.
+  const panRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    startScrollLeft: number;
+    startScrollTop: number;
+  } | null>(null);
 
   const svgRef = useRef<SVGSVGElement | null>(null);
   const routes = useGraphStore((s) => s.routes);
@@ -127,92 +139,129 @@ export const Canvas = forwardRef<SVGSVGElement, CanvasProps>(function Canvas(
   const exportH = bbox ? Math.round(bbox.h + 2 * margin) : 0;
 
   return (
-    <div className="canvas-fill">
-      <svg
-        ref={(node) => {
-          svgRef.current = node;
-          if (typeof ref === 'function') ref(node);
-          else if (ref) ref.current = node;
-        }}
-        width={w}
-        height={h}
-        viewBox={`${svgMinX} ${svgMinY} ${w} ${h}`}
-        role="img"
-        aria-label="Diagram"
-        data-theme={layout.viewport.theme}
-        style={{ background: plan.palette.paper }}
-        onPointerDown={(e) => {
-          // Click on empty canvas (background or any non-interactive child
-          // that didn't stopPropagation) clears the selection.
-          if (e.target === e.currentTarget || (e.target as Element).classList.contains('grid-bg')) {
-            clearSelection();
-          }
-        }}
-      >
-        <defs>
-          <GridDefs grid={plan.grid} />
-        </defs>
-        {showGrid && (
-          <rect
-            className="grid-bg"
-            x={svgMinX}
-            y={svgMinY}
-            width={w}
-            height={h}
-            fill={`url(#${plan.grid.id})`}
-          />
-        )}
-        <g transform={`translate(${viewOffset.x} ${viewOffset.y})`}>
-          {/* Containers render first so edges and inner nodes paint on top of
+    <svg
+      ref={(node) => {
+        svgRef.current = node;
+        if (typeof ref === 'function') ref(node);
+        else if (ref) ref.current = node;
+      }}
+      width={w}
+      height={h}
+      viewBox={`${svgMinX} ${svgMinY} ${w} ${h}`}
+      role="img"
+      aria-label="Diagram"
+      data-theme={layout.viewport.theme}
+      style={{ background: plan.palette.paper, cursor: 'grab' }}
+      onPointerDown={(e) => {
+        const onBlank =
+          e.target === e.currentTarget || (e.target as Element).classList.contains('grid-bg');
+        if (!onBlank) return;
+        // Click on empty canvas clears any active selection.
+        if (hasSelection) {
+          clearSelection();
+          return;
+        }
+        // Nothing selected → start a pan gesture. We only need to pan if
+        // there's actually something to scroll; in a freshly-loaded centered
+        // diagram the host might fit everything and scrollLeft/Top stay 0,
+        // which is fine — the gesture just no-ops.
+        const host = hostRef.current;
+        if (!host || e.button !== 0) return;
+        (e.currentTarget as SVGSVGElement).setPointerCapture(e.pointerId);
+        panRef.current = {
+          pointerId: e.pointerId,
+          startX: e.clientX,
+          startY: e.clientY,
+          startScrollLeft: host.scrollLeft,
+          startScrollTop: host.scrollTop,
+        };
+        (e.currentTarget as SVGSVGElement).style.cursor = 'grabbing';
+      }}
+      onPointerMove={(e) => {
+        const pan = panRef.current;
+        if (!pan || pan.pointerId !== e.pointerId) return;
+        const host = hostRef.current;
+        if (!host) return;
+        host.scrollLeft = pan.startScrollLeft - (e.clientX - pan.startX);
+        host.scrollTop = pan.startScrollTop - (e.clientY - pan.startY);
+      }}
+      onPointerUp={(e) => {
+        const pan = panRef.current;
+        if (!pan || pan.pointerId !== e.pointerId) return;
+        panRef.current = null;
+        (e.currentTarget as SVGSVGElement).releasePointerCapture(e.pointerId);
+        (e.currentTarget as SVGSVGElement).style.cursor = '';
+      }}
+      onPointerCancel={(e) => {
+        const pan = panRef.current;
+        if (!pan || pan.pointerId !== e.pointerId) return;
+        panRef.current = null;
+        (e.currentTarget as SVGSVGElement).style.cursor = '';
+      }}
+    >
+      <defs>
+        <GridDefs grid={plan.grid} />
+      </defs>
+      {showGrid && (
+        <rect
+          className="grid-bg"
+          x={svgMinX}
+          y={svgMinY}
+          width={w}
+          height={h}
+          fill={`url(#${plan.grid.id})`}
+        />
+      )}
+      <g transform={`translate(${viewOffset.x} ${viewOffset.y})`}>
+        {/* Containers render first so edges and inner nodes paint on top of
               them. Edges sit above containers but below leaf nodes, so a
               connection that targets a container is still readable. */}
-          <g className="containers">
-            {plan.nodes
-              .filter((n) => n.isContainer)
-              .map((n) => (
-                <NodeView key={n.id} node={n} showAnchors={showAnchors} />
-              ))}
-          </g>
-          <g className="edges">
-            {plan.edges.map((e) => (
-              <EdgeView key={e.id} edge={e} />
+        <g className="containers">
+          {plan.nodes
+            .filter((n) => n.isContainer)
+            .map((n) => (
+              <NodeView key={n.id} node={n} showAnchors={showAnchors} />
             ))}
-          </g>
-          <g className="nodes">
-            {plan.nodes
-              .filter((n) => !n.isContainer)
-              .map((n) => (
-                <NodeView key={n.id} node={n} showAnchors={showAnchors} />
-              ))}
-          </g>
         </g>
-        {bbox && (
-          <g className="export-outline">
-            <rect
-              x={bbox.x - margin}
-              y={bbox.y - margin}
-              width={exportW}
-              height={exportH}
-              fill="none"
-              stroke="var(--ink-muted)"
-              strokeWidth={1}
-              strokeDasharray="2 4"
-              opacity={0.5}
-            />
-            <text
-              className="size-label"
-              x={bbox.x + bbox.w + margin}
-              y={bbox.y + bbox.h + margin + 14}
-              textAnchor="end"
-              fill="var(--ink-muted)"
-              fontFamily="var(--font-mono)"
-              fontSize={10}
-            >
-              {exportW} × {exportH} px
-            </text>
-          </g>
-        )}
-      </svg>
-    </div>
+        <g className="edges">
+          {plan.edges.map((e) => (
+            <EdgeView key={e.id} edge={e} />
+          ))}
+        </g>
+        <g className="nodes">
+          {plan.nodes
+            .filter((n) => !n.isContainer)
+            .map((n) => (
+              <NodeView key={n.id} node={n} showAnchors={showAnchors} />
+            ))}
+        </g>
+      </g>
+      {bbox && (
+        <g className="export-outline">
+          <rect
+            x={bbox.x - margin}
+            y={bbox.y - margin}
+            width={exportW}
+            height={exportH}
+            fill="none"
+            stroke="var(--ink-muted)"
+            strokeWidth={1}
+            strokeDasharray="2 4"
+            opacity={0.5}
+          />
+          <text
+            className="size-label"
+            x={bbox.x + bbox.w + margin}
+            y={bbox.y + bbox.h + margin + 14}
+            textAnchor="end"
+            fill="var(--ink-muted)"
+            fontFamily="var(--font-mono)"
+            fontSize={10}
+          >
+            {exportW} × {exportH} px
+          </text>
+        </g>
+      )}
+    </svg>
   );
 });

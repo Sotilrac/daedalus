@@ -12,10 +12,10 @@ export interface ThemePalette {
   gridDot: string;
 }
 
-// Default "graphite" theme: a CAD / Blender-ish dark gray with a warm orange
-// accent. Theme id stays `blueprint` so older sidecars keep loading; only
-// the colours changed.
-export const blueprintPalette: ThemePalette = {
+// Default "slate" theme: a CAD / Blender-ish dark gray with a warm orange
+// accent. Older sidecars used 'blueprint' as the id; sidecar/io migrates them
+// to 'slate' on read.
+export const slatePalette: ThemePalette = {
   paper: '#2b2b2b',
   paperSunk: '#1f1f1f',
   ink: '#dcdcdc',
@@ -90,5 +90,5 @@ export function resolveEdgeStyle(palette: ThemePalette, style: EdgeStyle): Resol
   return out;
 }
 
-export const themes = { blueprint: blueprintPalette, paper: paperPalette };
+export const themes = { slate: slatePalette, paper: paperPalette };
 export type ThemeName = keyof typeof themes;

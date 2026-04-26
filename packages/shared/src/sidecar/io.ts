@@ -37,7 +37,12 @@ function migrate(input: unknown): unknown {
   const entries = obj.entries as Record<string, Record<string, unknown>>;
   for (const key of Object.keys(entries)) {
     const entry = entries[key];
-    if (entry && !('settings' in entry)) entry.settings = defaultSettings();
+    if (!entry) continue;
+    if (!('settings' in entry)) entry.settings = defaultSettings();
+    // The dark theme was originally named 'blueprint'; renamed to 'slate'
+    // to match the actual gray palette. Coerce older sidecars.
+    const viewport = entry.viewport as Record<string, unknown> | undefined;
+    if (viewport && viewport.theme === 'blueprint') viewport.theme = 'slate';
   }
   return obj;
 }

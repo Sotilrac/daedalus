@@ -123,7 +123,7 @@ export interface Viewport {
   zoom: number;
   panX: number;
   panY: number;
-  theme: 'blueprint' | 'paper';
+  theme: 'slate' | 'paper';
 }
 
 export interface RoutingSettings {
@@ -170,7 +170,7 @@ export type EdgeRoute = readonly Point[];
 export type EdgeRoutes = Record<EdgeId, EdgeRoute>;
 
 export const DEFAULT_GRID: GridConfig = { size: 16, cols: 80, rows: 50 };
-export const DEFAULT_VIEWPORT: Viewport = { zoom: 1, panX: 0, panY: 0, theme: 'blueprint' };
+export const DEFAULT_VIEWPORT: Viewport = { zoom: 1, panX: 0, panY: 0, theme: 'slate' };
 
 export function emptyConnections(): Record<Side, EdgeId[]> {
   return { top: [], right: [], bottom: [], left: [] };
