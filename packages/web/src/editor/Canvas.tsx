@@ -14,6 +14,7 @@ import { GridDefs } from './GridDefs.js';
 
 interface CanvasProps {
   hostRef: RefObject<HTMLDivElement | null>;
+  showGrid: boolean;
 }
 
 interface BBox {
@@ -24,7 +25,7 @@ interface BBox {
 }
 
 export const Canvas = forwardRef<SVGSVGElement, CanvasProps>(function Canvas(
-  { hostRef },
+  { hostRef, showGrid },
   ref,
 ): JSX.Element | null {
   const plan = useGraphStore((s) => s.plan);
@@ -150,14 +151,16 @@ export const Canvas = forwardRef<SVGSVGElement, CanvasProps>(function Canvas(
         <defs>
           <GridDefs grid={plan.grid} />
         </defs>
-        <rect
-          className="grid-bg"
-          x={svgMinX}
-          y={svgMinY}
-          width={w}
-          height={h}
-          fill={`url(#${plan.grid.id})`}
-        />
+        {showGrid && (
+          <rect
+            className="grid-bg"
+            x={svgMinX}
+            y={svgMinY}
+            width={w}
+            height={h}
+            fill={`url(#${plan.grid.id})`}
+          />
+        )}
         <g transform={`translate(${viewOffset.x} ${viewOffset.y})`}>
           {/* Containers render first so edges and inner nodes paint on top of
               them. Edges sit above containers but below leaf nodes, so a

@@ -32,9 +32,14 @@ export function App(): JSX.Element {
   const layout = useGraphStore((s) => s.layout);
   const needsRelayout = useGraphStore((s) => s.needsRelayout);
   const setTheme = useGraphStore((s) => s.setTheme);
+  const showingAuto = useGraphStore((s) => s.showingAuto);
+  const autoLayout = useGraphStore((s) => s.autoLayout);
+  const toggleAutoLayout = useGraphStore((s) => s.toggleAutoLayout);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [autoReload, setAutoReload] = useState<boolean>(recallAutoReload);
+  const [allowContextMenu, setAllowContextMenu] = useState<boolean>(recallAllowContextMenu);
+  const [showGrid, setShowGrid] = useState<boolean>(recallShowGrid);
 
   const svgRef = useRef<SVGSVGElement | null>(null);
   const hostRef = useRef<HTMLElement | null>(null);
@@ -56,6 +61,18 @@ export function App(): JSX.Element {
       localStorage.setItem(AUTO_RELOAD_KEY, String(autoReload));
     }
   }, [autoReload]);
+
+  useEffect(() => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(ALLOW_CTX_KEY, String(allowContextMenu));
+    }
+  }, [allowContextMenu]);
+
+  useEffect(() => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(SHOW_GRID_KEY, String(showGrid));
+    }
+  }, [showGrid]);
 
   // Load D2 files + sidecar, recompile, reconcile. Reads the latest model
   // from the store at call time. Returned promise resolves once the load
@@ -124,6 +141,9 @@ export function App(): JSX.Element {
   useEffect(() => {
     if (!source || !layout) return undefined;
     if (interacting) return undefined;
+    // Don't persist the engine's auto layout — that's a transient comparison
+    // view; the user's edits live in `manualStash` and will reappear on toggle.
+    if (showingAuto) return undefined;
     if (lastPersistedRef.current === layout) return undefined;
     const id = setTimeout(() => {
       void (async () => {
@@ -139,7 +159,7 @@ export function App(): JSX.Element {
       })();
     }, 200);
     return () => clearTimeout(id);
-  }, [layout, interacting, source, entryPath, setErrors]);
+  }, [layout, interacting, showingAuto, source, entryPath, setErrors]);
 
   const onPickFolder = useCallback(async () => {
     const folder = await pickFolderViaTauri();
@@ -298,6 +318,23 @@ export function App(): JSX.Element {
         >
           Relayout
         </button>
+        <button
+          onClick={() => {
+            void (async () => {
+              await toggleAutoLayout();
+              onCenter();
+            })();
+          }}
+          disabled={!autoLayout || !layout}
+          aria-pressed={showingAuto}
+          title={
+            showingAuto
+              ? 'Showing the engine layout. Click to return to your edits.'
+              : 'Compare against the latest auto layout.'
+          }
+        >
+          {showingAuto ? 'Show edits' : 'Show auto'}
+        </button>
         <button onClick={onCenter} disabled={!layout}>
           Center
         </button>
@@ -322,11 +359,26 @@ export function App(): JSX.Element {
             Settings
           </button>
           {settingsOpen && (
-            <SettingsPanel autoReload={autoReload} onAutoReloadChange={setAutoReload} />
+            <SettingsPanel
+              autoReload={autoReload}
+              onAutoReloadChange={setAutoReload}
+              allowContextMenu={allowContextMenu}
+              onAllowContextMenuChange={setAllowContextMenu}
+              showGrid={showGrid}
+              onShowGridChange={setShowGrid}
+            />
           )}
         </span>
       </header>
-      <main className="canvas-host" ref={hostRef}>
+      <main
+        className="canvas-host"
+        ref={hostRef}
+        onContextMenu={(e) => {
+          // The canvas is a non-text surface; suppress the OS context menu
+          // unless the user has explicitly opted into it for dev work.
+          if (!allowContextMenu) e.preventDefault();
+        }}
+      >
         {!source && (
           <div className="empty-state">
             <h1>Daedalus</h1>
@@ -338,6 +390,7 @@ export function App(): JSX.Element {
         <Canvas
           ref={svgRef}
           hostRef={hostRef as unknown as React.RefObject<HTMLDivElement | null>}
+          showGrid={showGrid}
         />
       </main>
     </div>
@@ -421,10 +474,23 @@ function dirOf(path: string): string {
 const EXPORT_DIR_KEY = 'daedalus.lastExportDir';
 const LAST_FOLDER_KEY = 'daedalus.lastFolder';
 const AUTO_RELOAD_KEY = 'daedalus.autoReload';
+const ALLOW_CTX_KEY = 'daedalus.allowContextMenu';
+const SHOW_GRID_KEY = 'daedalus.showGrid';
 
 function recallAutoReload(): boolean {
   if (typeof localStorage === 'undefined') return true;
   const v = localStorage.getItem(AUTO_RELOAD_KEY);
+  return v === null ? true : v === 'true';
+}
+
+function recallAllowContextMenu(): boolean {
+  if (typeof localStorage === 'undefined') return false;
+  return localStorage.getItem(ALLOW_CTX_KEY) === 'true';
+}
+
+function recallShowGrid(): boolean {
+  if (typeof localStorage === 'undefined') return true;
+  const v = localStorage.getItem(SHOW_GRID_KEY);
   return v === null ? true : v === 'true';
 }
 

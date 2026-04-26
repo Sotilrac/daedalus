@@ -99,6 +99,12 @@ button:disabled {
   position: relative;
   overflow: auto;
   background: var(--paper);
+
+  /* The canvas is a graphical surface, not a text region — text selection
+      while dragging looks broken and serves no purpose. The toolbar/banners
+      sit outside this container and remain selectable. */
+  user-select: none;
+  user-select: none;
 }
 
 .canvas-host svg {

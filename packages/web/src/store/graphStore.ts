@@ -50,6 +50,14 @@ export interface GraphState {
   // Lets a continuous drag emit a single history entry instead of one per
   // pointer-move frame.
   gestureSnapshotTaken: boolean;
+  // Auto-layout comparison. `autoLayout` is the most recent ELK pass, kept
+  // around so the user can flip between "as engine routed" and "as I edited".
+  // When `showingAuto` is true, `layout` holds the auto pass and `manualStash`
+  // holds the user-edited layout we'll restore on toggle-off.
+  autoLayout: Layout | null;
+  manualStash: Layout | null;
+  showingAuto: boolean;
+  toggleAutoLayout(): Promise<void>;
   setInteracting(b: boolean): void;
   setViewOffset(o: { x: number; y: number }): void;
   loadFromCompile(opts: {
@@ -111,6 +119,9 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   past: [],
   future: [],
   gestureSnapshotTaken: false,
+  autoLayout: null,
+  manualStash: null,
+  showingAuto: false,
   setInteracting(b) {
     if (get().interacting === b) return;
     // Reset the per-gesture snapshot flag whenever interacting transitions.
@@ -159,6 +170,12 @@ export const useGraphStore = create<GraphState>((set, get) => ({
       past: [],
       future: [],
       gestureSnapshotTaken: false,
+      // Stash the engine's untouched output so the user can flip between
+      // it and the edited layout. A fresh compile invalidates any in-flight
+      // comparison, so we drop out of auto-view here.
+      autoLayout: fresh,
+      manualStash: null,
+      showingAuto: false,
     });
   },
 
@@ -172,8 +189,8 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   },
 
   async moveNode(id, x, y) {
-    const { model, layout } = get();
-    if (!model || !layout) return;
+    const { model, layout, showingAuto } = get();
+    if (!model || !layout || showingAuto) return;
     const node = layout.nodes[id];
     if (!node) return;
 
@@ -213,8 +230,8 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   },
 
   async moveNodes(updates) {
-    const { model, layout } = get();
-    if (!model || !layout) return;
+    const { model, layout, showingAuto } = get();
+    if (!model || !layout || showingAuto) return;
     snapshotForHistory(set, get);
     const grid = layout.grid.size;
     const allIds = Object.keys(layout.nodes);
@@ -256,8 +273,8 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   },
 
   async resizeNode(id, w, h, anchor) {
-    const { model, layout } = get();
-    if (!model || !layout) return;
+    const { model, layout, showingAuto } = get();
+    if (!model || !layout || showingAuto) return;
     const node = layout.nodes[id];
     if (!node) return;
 
@@ -342,8 +359,8 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   },
 
   async swapAnchor(node, side, edgeId, offset) {
-    const { model, layout } = get();
-    if (!model || !layout) return;
+    const { model, layout, showingAuto } = get();
+    if (!model || !layout || showingAuto) return;
     const n = layout.nodes[node];
     if (!n) return;
 
@@ -366,8 +383,8 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   },
 
   async moveEdgeAnchor(nodeId, edgeId, toSide, toIndex) {
-    const { model, layout } = get();
-    if (!model || !layout) return;
+    const { model, layout, showingAuto } = get();
+    if (!model || !layout || showingAuto) return;
     const node = layout.nodes[nodeId];
     const edge = model.edges[edgeId];
     const sides = layout.edges[edgeId];
@@ -417,8 +434,8 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   },
 
   async updateSettings(patch) {
-    const { model, layout } = get();
-    if (!layout) return;
+    const { model, layout, showingAuto } = get();
+    if (!layout || showingAuto) return;
     snapshotForHistory(set, get);
     const nextLayout: Layout = {
       ...layout,
@@ -449,8 +466,8 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   },
 
   async undo() {
-    const { model, layout, past, future } = get();
-    if (!layout || past.length === 0) return;
+    const { model, layout, past, future, showingAuto } = get();
+    if (!layout || past.length === 0 || showingAuto) return;
     const prev = past[past.length - 1];
     if (!prev) return;
     const nextPast = past.slice(0, -1);
@@ -465,8 +482,8 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   },
 
   async redo() {
-    const { model, layout, past, future } = get();
-    if (!layout || future.length === 0) return;
+    const { model, layout, past, future, showingAuto } = get();
+    if (!layout || future.length === 0 || showingAuto) return;
     const next = future[0];
     if (!next) return;
     const nextPast = [...past, layout];
@@ -478,6 +495,23 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     const routes = await routeEdges(model, next);
     const plan = buildRenderPlan({ model, layout: next, routes });
     set({ past: nextPast, future: nextFuture, layout: next, routes, plan });
+  },
+
+  async toggleAutoLayout() {
+    const { model, layout, autoLayout, manualStash, showingAuto } = get();
+    if (!model || !layout || !autoLayout) return;
+    if (showingAuto) {
+      // Restore the user's edits. `manualStash` is the layout we replaced when
+      // entering auto-view; it captures whatever the user was looking at.
+      const restore = manualStash ?? layout;
+      const routes = await routeEdges(model, restore);
+      const plan = buildRenderPlan({ model, layout: restore, routes });
+      set({ layout: restore, manualStash: null, showingAuto: false, routes, plan });
+    } else {
+      const routes = await routeEdges(model, autoLayout);
+      const plan = buildRenderPlan({ model, layout: autoLayout, routes });
+      set({ layout: autoLayout, manualStash: layout, showingAuto: true, routes, plan });
+    }
   },
 }));
 

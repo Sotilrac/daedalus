@@ -3,11 +3,19 @@ import { useGraphStore } from '../store/graphStore.js';
 export interface SettingsPanelProps {
   autoReload: boolean;
   onAutoReloadChange: (v: boolean) => void;
+  allowContextMenu: boolean;
+  onAllowContextMenuChange: (v: boolean) => void;
+  showGrid: boolean;
+  onShowGridChange: (v: boolean) => void;
 }
 
 export function SettingsPanel({
   autoReload,
   onAutoReloadChange,
+  allowContextMenu,
+  onAllowContextMenuChange,
+  showGrid,
+  onShowGridChange,
 }: SettingsPanelProps): JSX.Element | null {
   const layout = useGraphStore((s) => s.layout);
   const updateSettings = useGraphStore((s) => s.updateSettings);
@@ -16,6 +24,17 @@ export function SettingsPanel({
 
   return (
     <div className="settings-panel" role="dialog" aria-label="Settings">
+      <section>
+        <h3>Display</h3>
+        <label className="row checkbox" title="Toggle the dot grid in the editor.">
+          <input
+            type="checkbox"
+            checked={showGrid}
+            onChange={(e) => onShowGridChange(e.target.checked)}
+          />
+          <span>Show grid</span>
+        </label>
+      </section>
       <section>
         <h3>Source</h3>
         <label
@@ -74,6 +93,20 @@ export function SettingsPanel({
             onChange={(e) => void updateSettings({ export: { showGrid: e.target.checked } })}
           />
           <span>Include grid</span>
+        </label>
+      </section>
+      <section>
+        <h3>Developer</h3>
+        <label
+          className="row checkbox"
+          title="Re-enable the browser context menu on the canvas (for inspecting elements while developing)."
+        >
+          <input
+            type="checkbox"
+            checked={allowContextMenu}
+            onChange={(e) => onAllowContextMenuChange(e.target.checked)}
+          />
+          <span>Allow right-click on canvas</span>
         </label>
       </section>
     </div>
