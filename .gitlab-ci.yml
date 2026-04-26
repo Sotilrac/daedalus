@@ -4,6 +4,14 @@ default:
   image: node:22.21.1-bookworm
   interruptible: true
 
+# Cancel an in-flight pipeline when a newer commit lands on the same ref —
+# every job is `interruptible`, so all of them get pulled. Project-level
+# "Auto-cancel redundant pipelines" can stay default; this is the explicit
+# YAML opt-in (GitLab 15.8+).
+workflow:
+  auto_cancel:
+    on_new_commit: interruptible
+
 # GitLab runs the cheap correctness checks on every push. Tag-driven release
 # builds (Linux AppImage/deb, macOS dmg, Windows msi/nsis) live in GitHub
 # Actions; see `.github/workflows/release-desktop.yml`.

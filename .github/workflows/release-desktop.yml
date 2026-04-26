@@ -7,6 +7,13 @@ on:
       - 'desktop-v*'
   workflow_dispatch:
 
+# Cancel an in-flight release if a newer run is started for the same tag/ref
+# (e.g. a re-tag after spotting a last-minute issue). Different tags get
+# different groups so v1.0.1 and v1.0.2 can build in parallel.
+concurrency:
+  group: release-desktop-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build Tauri (${{ matrix.os }})
