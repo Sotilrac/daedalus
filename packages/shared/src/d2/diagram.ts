@@ -1,4 +1,5 @@
 import type {
+  Arrowhead,
   Model,
   ModelEdge,
   ModelNode,
@@ -80,6 +81,31 @@ interface D2FlatConnection {
   color?: string;
   italic?: boolean;
   bold?: boolean;
+  srcArrow?: string;
+  dstArrow?: string;
+}
+
+const ARROWHEADS = new Set<Arrowhead>([
+  'none',
+  'arrow',
+  'triangle',
+  'unfilled-triangle',
+  'diamond',
+  'filled-diamond',
+  'circle',
+  'filled-circle',
+  'box',
+  'filled-box',
+  'line',
+  'cf-one',
+  'cf-many',
+  'cf-one-required',
+  'cf-many-required',
+]);
+
+function asArrowhead(v: string | undefined): Arrowhead | undefined {
+  if (!v) return undefined;
+  return (ARROWHEADS as Set<string>).has(v) ? (v as Arrowhead) : undefined;
 }
 
 function nodeStyle(s: D2FlatNode): NodeStyle {
@@ -132,6 +158,10 @@ function connectionToEdge(c: D2FlatConnection): ModelEdge {
     style: edgeStyle(c),
   };
   if (c.label) edge.label = c.label;
+  const srcArrow = asArrowhead(c.srcArrow);
+  const dstArrow = asArrowhead(c.dstArrow);
+  if (srcArrow) edge.srcArrow = srcArrow;
+  if (dstArrow) edge.dstArrow = dstArrow;
   return edge;
 }
 

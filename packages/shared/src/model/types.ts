@@ -61,11 +61,33 @@ export interface ModelNode {
   labelPosition?: LabelPosition;
 }
 
+// D2's arrowhead palette. Mirrors the @terrastruct/d2 `Arrowhead` union.
+export type Arrowhead =
+  | 'none'
+  | 'arrow'
+  | 'triangle'
+  | 'unfilled-triangle'
+  | 'diamond'
+  | 'filled-diamond'
+  | 'circle'
+  | 'filled-circle'
+  | 'box'
+  | 'filled-box'
+  | 'line'
+  | 'cf-one'
+  | 'cf-many'
+  | 'cf-one-required'
+  | 'cf-many-required';
+
 export interface ModelEdge {
   from: NodeId;
   to: NodeId;
   label?: string;
   style: EdgeStyle;
+  // D2's arrowhead at each endpoint. Missing means D2 didn't emit one
+  // (typically only `dstArrow` is set for plain `->` edges).
+  srcArrow?: Arrowhead;
+  dstArrow?: Arrowhead;
 }
 
 export interface Model {

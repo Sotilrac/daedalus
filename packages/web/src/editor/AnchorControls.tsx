@@ -34,6 +34,8 @@ const SNAP_RADIUS = 28;
 export function AnchorControls({ nodeId, width, height }: Props): JSX.Element {
   const layout = useGraphStore((s) => s.layout);
   const moveEdgeAnchor = useGraphStore((s) => s.moveEdgeAnchor);
+  const clearSelection = useGraphStore((s) => s.clearSelection);
+  const setInteracting = useGraphStore((s) => s.setInteracting);
   const [editing, setEditing] = useState<Editing | null>(null);
 
   if (!layout) return <g />;
@@ -78,6 +80,11 @@ export function AnchorControls({ nodeId, width, height }: Props): JSX.Element {
               onPointerDown={(e) => {
                 e.stopPropagation();
                 e.currentTarget.setPointerCapture(e.pointerId);
+                // Editing a connection is a different gesture from selecting
+                // boxes; drop the current node selection so the resize handle
+                // and selection-box chrome don't fight the anchor drag UI.
+                clearSelection();
+                setInteracting(true);
                 setEditing({
                   edgeId,
                   fromSide: side,
@@ -112,9 +119,13 @@ export function AnchorControls({ nodeId, width, height }: Props): JSX.Element {
                     void moveEdgeAnchor(nodeId, edgeId, nearest.side, nearest.index);
                   }
                 }
+                setInteracting(false);
                 setEditing(null);
               }}
-              onPointerCancel={() => setEditing(null)}
+              onPointerCancel={() => {
+                setInteracting(false);
+                setEditing(null);
+              }}
             />
           );
         }),

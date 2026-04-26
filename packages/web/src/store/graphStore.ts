@@ -32,6 +32,10 @@ export interface GraphState {
   selection: NodeId[];
   needsRelayout: boolean;
   viewOffset: { x: number; y: number };
+  // True while the user is mid-gesture (dragging, resizing, moving an edge
+  // anchor). Lets the persist layer hold off writes until the gesture ends.
+  interacting: boolean;
+  setInteracting(b: boolean): void;
   setViewOffset(o: { x: number; y: number }): void;
   loadFromCompile(opts: {
     files: Record<string, string>;
@@ -69,6 +73,11 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   selection: [],
   needsRelayout: false,
   viewOffset: { x: 0, y: 0 },
+  interacting: false,
+  setInteracting(b) {
+    if (get().interacting === b) return;
+    set({ interacting: b });
+  },
   setViewOffset(o) {
     set({ viewOffset: o });
   },

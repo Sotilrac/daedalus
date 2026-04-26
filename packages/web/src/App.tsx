@@ -115,9 +115,15 @@ export function App(): JSX.Element {
     };
   }, [source, reload]);
 
+  const interacting = useGraphStore((s) => s.interacting);
+
   // Debounced sidecar persist whenever the user changes layout in the editor.
+  // Skips writes mid-gesture (drag, resize, edge-anchor move) so we don't
+  // pound the disk on every pointer-move; the effect re-runs when
+  // `interacting` flips back to false and writes the final state.
   useEffect(() => {
     if (!source || !layout) return undefined;
+    if (interacting) return undefined;
     if (lastPersistedRef.current === layout) return undefined;
     const id = setTimeout(() => {
       void (async () => {
@@ -133,7 +139,7 @@ export function App(): JSX.Element {
       })();
     }, 200);
     return () => clearTimeout(id);
-  }, [layout, source, entryPath, setErrors]);
+  }, [layout, interacting, source, entryPath, setErrors]);
 
   const onPickFolder = useCallback(async () => {
     const folder = await pickFolderViaTauri();
@@ -343,20 +349,35 @@ function exportOpts(svg: SVGSVGElement, layout: Layout): ExportOptions {
     if (b.y + b.height > maxY) maxY = b.y + b.height;
   }
 
+  // `getBBox()` returns coordinates in each group's *local* space — i.e.
+  // before the `translate(viewOffset)` wrapper that the canvas applies for
+  // pan/auto-center. The exported viewBox is in the SVG's user space, so we
+  // shift the bbox by viewOffset to land where the content actually paints.
+  const viewOffset = useGraphStore.getState().viewOffset;
+
   if (!Number.isFinite(minX)) {
     return {
       margin,
       showGrid,
       bbox: {
-        x: 0,
-        y: 0,
+        x: viewOffset.x,
+        y: viewOffset.y,
         w: layout.grid.cols * layout.grid.size,
         h: layout.grid.rows * layout.grid.size,
       },
     };
   }
 
-  return { margin, showGrid, bbox: { x: minX, y: minY, w: maxX - minX, h: maxY - minY } };
+  return {
+    margin,
+    showGrid,
+    bbox: {
+      x: minX + viewOffset.x,
+      y: minY + viewOffset.y,
+      w: maxX - minX,
+      h: maxY - minY,
+    },
+  };
 }
 
 function folderBasename(path: string | null): string {

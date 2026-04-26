@@ -49,6 +49,13 @@ button:disabled {
   display: grid;
   grid-template-rows: auto 1fr;
   height: 100%;
+
+  /* `data-theme` on .app overrides the CSS variables for its descendants,
+      but the color/background declared on html/body/#root already resolved
+      under the :root variables (dark mode). Re-declaring them here forces a
+      fresh resolve so a paper-themed app actually uses dark ink on cream. */
+  color: var(--ink);
+  background: var(--paper);
 }
 
 .toolbar {

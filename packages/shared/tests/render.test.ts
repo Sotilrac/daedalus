@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildRenderPlan, polylineToPath, resolveLabelPlacement } from '../src/render/svg.js';
+import {
+  buildRenderPlan,
+  polylineToPath,
+  resolveLabelPlacement,
+  wrapLabel,
+} from '../src/render/svg.js';
 import type { Layout, Model } from '../src/model/types.js';
 
 const model: Model = {
@@ -110,5 +115,28 @@ describe('resolveLabelPlacement', () => {
       textAnchor: 'middle',
       dominantBaseline: 'central',
     });
+  });
+});
+
+describe('wrapLabel', () => {
+  it('returns the original text on a single line when it fits', () => {
+    expect(wrapLabel('hello world', 200, 12)).toEqual(['hello world']);
+  });
+
+  it('wraps to multiple lines when the available width is too narrow', () => {
+    const lines = wrapLabel('the quick brown fox', 60, 12);
+    expect(lines.length).toBeGreaterThan(1);
+    for (const line of lines) {
+      expect(line.length).toBeLessThanOrEqual(10);
+    }
+  });
+
+  it('breaks oversized words rather than overflowing', () => {
+    const lines = wrapLabel('supercalifragilisticexpialidocious', 40, 12);
+    expect(lines.length).toBeGreaterThan(1);
+  });
+
+  it('preserves explicit newlines', () => {
+    expect(wrapLabel('first\nsecond', 200, 12)).toEqual(['first', 'second']);
   });
 });

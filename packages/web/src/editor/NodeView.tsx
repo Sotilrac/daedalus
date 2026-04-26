@@ -1,7 +1,12 @@
 import { useRef, useState } from 'react';
 import type { NodeId, RenderNode } from '@daedalus/shared';
+import { personBodyTop, wrapLabel } from '@daedalus/shared';
 import { useGraphStore } from '../store/graphStore.js';
 import { AnchorControls } from './AnchorControls.js';
+
+const LABEL_FONT_SIZE = 12;
+const LABEL_LINE_HEIGHT_EM = 1.2;
+const LABEL_HORIZONTAL_PADDING = 12; // total inset; 6px each side
 
 const DRAG_THRESHOLD = 3; // px before treating a press as a drag
 
@@ -56,6 +61,7 @@ export function NodeView({ node }: { node: RenderNode }): JSX.Element {
           if (n) origins[id] = { x: n.x, y: n.y };
         }
         movedRef.current = false;
+        store.setInteracting(true);
         setDrag({
           origins,
           pointerX: e.clientX,
@@ -81,26 +87,24 @@ export function NodeView({ node }: { node: RenderNode }): JSX.Element {
       }}
       onPointerUp={(e) => {
         e.currentTarget.releasePointerCapture(e.pointerId);
-        if (drag && !movedRef.current && drag.wasSelected && drag.prevSelLen > 1) {
-          // True click on a node that was already part of a multi-selection:
-          // collapse to single-select so the resize handle appears here.
-          useGraphStore.getState().selectOnly(node.id);
+        if (drag) {
+          if (!movedRef.current && drag.wasSelected && drag.prevSelLen > 1) {
+            // True click on a node that was already part of a multi-selection:
+            // collapse to single-select so the resize handle appears here.
+            useGraphStore.getState().selectOnly(node.id);
+          } else if (movedRef.current && Object.keys(drag.origins).length === 1) {
+            // Single-node drag: clear selection on release so the user isn't
+            // left with a transient selection from "just touch and move".
+            // Multi-drags keep their selection so the user can keep adjusting.
+            useGraphStore.getState().clearSelection();
+          }
         }
+        useGraphStore.getState().setInteracting(false);
         setDrag(null);
       }}
     >
       {renderShape(node)}
-      <text
-        x={node.labelPlacement.x}
-        y={node.labelPlacement.y}
-        textAnchor={node.labelPlacement.textAnchor}
-        dominantBaseline={node.labelPlacement.dominantBaseline}
-        fill={node.style.fontColor}
-        fontWeight={node.style.fontWeight}
-        fontStyle={node.style.fontStyle}
-      >
-        {node.label}
-      </text>
+      {renderLabel(node)}
       {isSelected && (
         <rect
           className="selection-box"
@@ -138,6 +142,7 @@ export function NodeView({ node }: { node: RenderNode }): JSX.Element {
             onPointerDown={(e) => {
               e.stopPropagation();
               e.currentTarget.setPointerCapture(e.pointerId);
+              useGraphStore.getState().setInteracting(true);
               setResize({
                 origW: node.w,
                 origH: node.h,
@@ -161,13 +166,63 @@ export function NodeView({ node }: { node: RenderNode }): JSX.Element {
             }}
             onPointerUp={(e) => {
               e.currentTarget.releasePointerCapture(e.pointerId);
+              useGraphStore.getState().setInteracting(false);
               setResize(null);
             }}
-            onPointerCancel={() => setResize(null)}
+            onPointerCancel={() => {
+              useGraphStore.getState().setInteracting(false);
+              setResize(null);
+            }}
           />
         </>
       )}
       <AnchorControls nodeId={node.id} width={node.w} height={node.h} />
+    </g>
+  );
+}
+
+function renderLabel(node: RenderNode): JSX.Element {
+  const { x, y, textAnchor, dominantBaseline } = node.labelPlacement;
+  const maxWidth = Math.max(LABEL_FONT_SIZE, node.w - LABEL_HORIZONTAL_PADDING);
+  const lines = wrapLabel(node.label, maxWidth, LABEL_FONT_SIZE);
+  const textProps = {
+    fill: node.style.fontColor,
+    fontWeight: node.style.fontWeight,
+    fontStyle: node.style.fontStyle,
+  };
+  if (lines.length === 1) {
+    return (
+      <text x={x} y={y} textAnchor={textAnchor} dominantBaseline={dominantBaseline} {...textProps}>
+        {lines[0]}
+      </text>
+    );
+  }
+  // Multi-line: render each line as its own <text> element so
+  // `dominantBaseline` applies unambiguously per line. Browsers don't
+  // consistently re-center each tspan when the parent text uses
+  // `central` and the children carry explicit `y`/`dy`, which left
+  // multi-line blocks visibly offset from the requested anchor point.
+  const lineHeight = LABEL_FONT_SIZE * LABEL_LINE_HEIGHT_EM;
+  let firstY = y;
+  if (dominantBaseline === 'central') {
+    firstY = y - ((lines.length - 1) / 2) * lineHeight;
+  } else if (dominantBaseline === 'auto') {
+    firstY = y - (lines.length - 1) * lineHeight;
+  }
+  return (
+    <g>
+      {lines.map((line, i) => (
+        <text
+          key={i}
+          x={x}
+          y={firstY + i * lineHeight}
+          textAnchor={textAnchor}
+          dominantBaseline={dominantBaseline}
+          {...textProps}
+        >
+          {line}
+        </text>
+      ))}
     </g>
   );
 }
@@ -270,23 +325,17 @@ function renderShape(node: RenderNode): JSX.Element {
       return <path d={body} {...common} />;
     }
     case 'person': {
-      // Stick-figure-ish: a head circle on top, a rounded body below.
+      // Stick-figure-ish: a head circle on top, a rounded body below. The
+      // body's top y is shared with the label placement resolver so the
+      // label always lands in the middle of the body rect.
       const headR = Math.min(w * 0.22, h * 0.28, 22);
-      const headCy = headR;
-      const bodyTop = headR * 2 + 2;
+      const bodyTop = personBodyTop(w, h);
       const bodyH = Math.max(0, h - bodyTop);
       const bodyR = Math.min(bodyH * 0.4, 18);
       return (
         <g>
-          <circle cx={w / 2} cy={headCy} r={headR} {...common} />
-          <rect
-            x={Math.max(0, w / 2 - Math.min(w * 0.45, 60))}
-            y={bodyTop}
-            width={Math.min(w * 0.9, 120)}
-            height={bodyH}
-            rx={bodyR}
-            {...common}
-          />
+          <circle cx={w / 2} cy={headR} r={headR} {...common} />
+          <rect x={0} y={bodyTop} width={w} height={bodyH} rx={bodyR} {...common} />
         </g>
       );
     }

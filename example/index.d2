@@ -13,8 +13,8 @@ piedpiper.founders.erlich -> piedpiper.pipey: designed the mascot {class: quirk}
 # ────────────────────────────────────────────
 piedpiper.eng.gilfoyle -> piedpiper.middleout: optimizes {class: optimize}
 piedpiper.eng.dinesh -> piedpiper.middleout: also optimizes {class: optimize}
-piedpiper.eng.dinesh -> piedpiper.eng.gilfoyle: subtweets {class: hostile; style.stroke-dash: 3}
-piedpiper.eng.bighead -> piedpiper.eng.gilfoyle: rooftop tutoring {class: whim}
+piedpiper.eng.dinesh <-> piedpiper.eng.gilfoyle: subtweets {class: hostile; style.stroke-dash: 3}
+piedpiper.eng.bighead <-> piedpiper.eng.gilfoyle: rooftop tutoring {class: whim}
 
 # ────────────────────────────────────────────
 # Inner-to-inner: pipeline data flow
@@ -44,22 +44,22 @@ pipeline.blobstore -> newinternet.condorcam: shard {class: shard; style.stroke-d
 # ────────────────────────────────────────────
 # Hooli vs Pied Piper
 # ────────────────────────────────────────────
-hooli.gavin -> piedpiper: sues {class: lawsuit}
+hooli.gavin -> piedpiper: sues {class: lawsuit; target-arrowhead.shape: diamond; target-arrowhead.style.filled: true}
 hooli.gavin -> hooli.nucleus: demands wins {class: hostile}
 hooli.nucleus -> piedpiper.middleout: tries to clone {class: theft}
 hooli.nucleus -> hooli.hoolicloud: uploads telemetry {class: data; style.stroke-width: 1}
-hooli.endframe -> piedpiper.middleout: literally stole the code {class: theft; style.stroke-width: 2; style.stroke-dash: 5}
+hooli.endframe -> piedpiper.middleout: literally stole the code {class: theft; style.stroke-width: 2; style.stroke-dash: 5; target-arrowhead.shape: cf-many}
 hooli.gavin -> hooli.hoolixyz: incubates {class: hostile}
 hooli.hoolixyz -> piedpiper.eng.bighead: poaches {class: theft}
 
 # ────────────────────────────────────────────
 # Money flows
 # ────────────────────────────────────────────
-money.russ -> piedpiper: tres commas {class: investment}
-money.raviga -> piedpiper: Series B {class: investment}
+money.russ -> piedpiper: tres commas {class: investment; target-arrowhead.shape: cf-one-required}
+money.raviga -> piedpiper: Series B {class: investment; target-arrowhead.shape: cf-one}
 money.laurie -> money.raviga: managing partner {class: money}
 money.monica -> money.raviga: junior partner {class: money}
-money.monica -> piedpiper.founders.richard: secretly rooting for {class: hedge}
+money.monica <-> piedpiper.founders.richard: secretly rooting for {class: hedge}
 money.raviga -> hooli: also invests {class: hedge}
 
 # ────────────────────────────────────────────
@@ -69,4 +69,4 @@ piedpiper.founders.erlich -> aviato: previously exited {class: whim}
 piedpiper.eng.bighead -> nothotdog: co-founded? {class: whim; style.stroke-dash: 3}
 nothotdog -> seefood: powers {class: shard}
 seefood -> hooli.hoolixyz: pivot acquisition {class: hedge; style.stroke-dash: 4}
-newinternet.condorcam -> hooli.gavin: live feed of his pet {class: quirk; style.stroke-dash: 3}
+newinternet.condorcam -> hooli.gavin: live feed of his pet {class: quirk; style.stroke-dash: 3; target-arrowhead.shape: circle; target-arrowhead.style.filled: true}

@@ -1,4 +1,12 @@
-import type { EdgeRoutes, LabelPosition, Layout, Model, Point, ShapeKind } from '../model/types.js';
+import type {
+  Arrowhead,
+  EdgeRoutes,
+  LabelPosition,
+  Layout,
+  Model,
+  Point,
+  ShapeKind,
+} from '../model/types.js';
 import { isContainer } from '../model/ids.js';
 import { gridPattern } from './grid.js';
 import {
@@ -50,10 +58,15 @@ export interface LabelPlacement {
 export interface RenderEdge {
   id: string;
   path: string; // SVG path "d" attribute
+  // Polyline points: keep the raw geometry so the renderer can derive
+  // arrow tip/direction without re-parsing the path string.
+  route: Point[];
   label?: string;
   midpoint: Point;
   labelBackground: string; // resolved theme hex for label pill
   style: ReturnType<typeof resolveEdgeStyle>;
+  srcArrow?: Arrowhead;
+  dstArrow?: Arrowhead;
 }
 
 export interface BuildPlanInput {
@@ -82,7 +95,7 @@ export function buildRenderPlan({ model, layout, routes, theme }: BuildPlanInput
       w,
       h,
       label: n.label,
-      labelPlacement: resolveLabelPlacement(n.labelPosition, w, h),
+      labelPlacement: resolveLabelPlacement(n.labelPosition, w, h, n.shape),
       style: resolveNodeStyle(palette, n.style),
       isContainer: isContainer(nodeIds, id),
     };
@@ -93,8 +106,17 @@ export function buildRenderPlan({ model, layout, routes, theme }: BuildPlanInput
     const path = polylineToPath(route);
     const midpoint = labelPoint(route);
     const style = resolveEdgeStyle(palette, e.style);
-    const out: RenderEdge = { id, path, midpoint, labelBackground: palette.paper, style };
+    const out: RenderEdge = {
+      id,
+      path,
+      route: [...route],
+      midpoint,
+      labelBackground: palette.paper,
+      style,
+    };
     if (e.label) out.label = e.label;
+    if (e.srcArrow) out.srcArrow = e.srcArrow;
+    if (e.dstArrow) out.dstArrow = e.dstArrow;
     return out;
   });
 
@@ -147,11 +169,37 @@ export function labelPoint(route: readonly Point[]): Point {
 // node's group origin, so a negative `y` puts the label above the box.
 const LABEL_INSET = 6;
 
+// Y where the body of a `person` shape begins, given total node height.
+// Shared between the renderer and the label-placement resolver so the label
+// stays centered in the body even when the user resizes the node.
+export function personBodyTop(w: number, h: number): number {
+  const headR = Math.min(w * 0.22, h * 0.28, 22);
+  return headR * 2 + 2;
+}
+
 export function resolveLabelPlacement(
   position: LabelPosition | undefined,
   w: number,
   h: number,
+  shape?: ShapeKind,
 ): LabelPlacement {
+  // For `person`, D2 emits `OUTSIDE_BOTTOM_CENTER` as the *default* label
+  // position. We can't distinguish that default from a deliberate user
+  // override, but the in-body placement is what users almost always want
+  // visually, so we override both the unset case and the default. An
+  // explicit position other than the default still wins.
+  if (
+    shape === 'person' &&
+    (!position || position === 'UNSET_LABEL_POSITION' || position === 'OUTSIDE_BOTTOM_CENTER')
+  ) {
+    const bodyTop = personBodyTop(w, h);
+    return {
+      x: w / 2,
+      y: (bodyTop + h) / 2,
+      textAnchor: 'middle',
+      dominantBaseline: 'central',
+    };
+  }
   const fallback: LabelPlacement = {
     x: w / 2,
     y: h / 2,
@@ -242,6 +290,58 @@ export function resolveLabelPlacement(
   }
 
   return { x, y, textAnchor, dominantBaseline };
+}
+
+// Greedy word-wrap based on an estimated average glyph width. We can't run
+// real text metrics here (shared is DOM-free), but for the sans-serif fonts
+// used in the canvas a 0.55× ratio is a reasonable approximation that
+// errs slightly on the side of wrapping early.
+const AVG_GLYPH_RATIO = 0.55;
+
+export function wrapLabel(label: string, maxWidth: number, fontSize: number): string[] {
+  if (!label) return [''];
+  if (maxWidth <= 0 || !Number.isFinite(maxWidth)) return [label];
+
+  const charWidth = fontSize * AVG_GLYPH_RATIO;
+  const fits = (s: string): boolean => s.length * charWidth <= maxWidth;
+
+  const out: string[] = [];
+  for (const segment of label.split(/\r?\n/)) {
+    if (segment === '') {
+      out.push('');
+      continue;
+    }
+    const words = segment.split(/\s+/).filter(Boolean);
+    let line = '';
+    for (const word of words) {
+      const candidate = line ? `${line} ${word}` : word;
+      if (fits(candidate)) {
+        line = candidate;
+        continue;
+      }
+      if (line) {
+        out.push(line);
+        line = '';
+      }
+      // Word still wider than the available width: hard-break by characters.
+      if (!fits(word)) {
+        let chunk = '';
+        for (const ch of word) {
+          if (!fits(chunk + ch) && chunk) {
+            out.push(chunk);
+            chunk = ch;
+          } else {
+            chunk += ch;
+          }
+        }
+        line = chunk;
+      } else {
+        line = word;
+      }
+    }
+    if (line) out.push(line);
+  }
+  return out.length ? out : [''];
 }
 
 export function polylineToPath(points: readonly Point[]): string {

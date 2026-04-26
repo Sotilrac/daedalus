@@ -58,9 +58,16 @@ export interface ResolvedEdgeStyle {
   opacity: number;
 }
 
+// `fill: transparent` from D2 is interpreted by some renderers (notably the
+// canvas-based PNG rasterizer) as "use the default fill", which is black.
+// `fill: none` is unambiguous everywhere.
+function normalizeFill(value: string): string {
+  return value.trim().toLowerCase() === 'transparent' ? 'none' : value;
+}
+
 export function resolveNodeStyle(palette: ThemePalette, style: NodeStyle): ResolvedNodeStyle {
   const out: ResolvedNodeStyle = {
-    fill: style.fill ?? palette.paperSunk,
+    fill: normalizeFill(style.fill ?? palette.paperSunk),
     stroke: style.stroke ?? palette.ink,
     strokeWidth: style.strokeWidth ?? 1,
     fontColor: style.fontColor ?? palette.ink,

@@ -1,4 +1,4 @@
-import type { RenderEdge } from '@daedalus/shared';
+import type { Arrowhead, Point, RenderEdge } from '@daedalus/shared';
 
 const LABEL_FONT_SIZE = 11;
 const LABEL_PAD_X = 6;
@@ -8,8 +8,28 @@ const LABEL_PAD_Y = 3;
 // the rendered text after mount.
 const LABEL_CHAR_W = 6.2;
 
+// Arrow geometry. Sized in user units (px); scale roughly with stroke width
+// so a thicker line carries a proportionally larger marker.
+const ARROW_LEN = 9;
+const ARROW_HALF = 4;
+// Distance from the path's terminal point at which the marker sits. The line
+// itself is shortened so it doesn't poke through the marker when the arrow
+// is filled (a visible seam at the tip otherwise).
+const TIP_INSET = 1;
+
 export function EdgeView({ edge }: { edge: RenderEdge }): JSX.Element {
-  if (!edge.path) return <g />;
+  if (!edge.path || edge.route.length < 2) return <g />;
+
+  const stroke = edge.style.stroke;
+  const strokeWidth = edge.style.strokeWidth;
+  const opacity = edge.style.opacity;
+
+  // Trim the path's geometric ends inward when a filled marker is present so
+  // the underlying stroke doesn't bleed through the tip.
+  const srcArrow = edge.srcArrow;
+  const dstArrow = edge.dstArrow;
+  const trimmed = trimRoute(edge.route, srcArrow, dstArrow);
+  const path = polylineToPath(trimmed);
 
   let labelEls: JSX.Element | null = null;
   if (edge.label) {
@@ -44,14 +64,227 @@ export function EdgeView({ edge }: { edge: RenderEdge }): JSX.Element {
   return (
     <g className="edge">
       <path
-        d={edge.path}
+        d={path}
         fill="none"
-        stroke={edge.style.stroke}
-        strokeWidth={edge.style.strokeWidth}
-        opacity={edge.style.opacity}
+        stroke={stroke}
+        strokeWidth={strokeWidth}
+        opacity={opacity}
         {...(edge.style.strokeDasharray ? { strokeDasharray: edge.style.strokeDasharray } : {})}
       />
+      {srcArrow &&
+        srcArrow !== 'none' &&
+        renderArrow(edge.route, 'src', srcArrow, stroke, strokeWidth, opacity)}
+      {dstArrow &&
+        dstArrow !== 'none' &&
+        renderArrow(edge.route, 'dst', dstArrow, stroke, strokeWidth, opacity)}
       {labelEls}
     </g>
   );
+}
+
+// ─── Geometry helpers ─────────────────────────────────────────────────────
+
+interface Anchor {
+  // Tip of the arrow (last point on the route at the marker end).
+  tip: Point;
+  // Unit vector pointing INTO the tip along the last segment.
+  ux: number;
+  uy: number;
+  // Perpendicular unit vector (90° CCW from u).
+  px: number;
+  py: number;
+}
+
+function endpointAnchor(route: Point[], end: 'src' | 'dst'): Anchor | null {
+  const tip = end === 'src' ? route[0] : route[route.length - 1];
+  const prev = end === 'src' ? route[1] : route[route.length - 2];
+  if (!tip || !prev) return null;
+  const dx = tip.x - prev.x;
+  const dy = tip.y - prev.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len;
+  const uy = dy / len;
+  return { tip, ux, uy, px: -uy, py: ux };
+}
+
+// Pull each end of the route inward when a filled marker sits there, so the
+// stroke doesn't peek out beyond the tip when the arrow is drawn on top.
+function trimRoute(
+  route: Point[],
+  src: Arrowhead | undefined,
+  dst: Arrowhead | undefined,
+): Point[] {
+  if (route.length < 2) return route;
+  const out = route.map((p) => ({ ...p }));
+  trimEnd(out, 'src', src);
+  trimEnd(out, 'dst', dst);
+  return out;
+}
+
+function trimEnd(route: Point[], end: 'src' | 'dst', arrow: Arrowhead | undefined): void {
+  if (!arrow || arrow === 'none') return;
+  // Crow's-foot variants don't fill the tip, so no trim is needed and a trim
+  // would leave a visible gap.
+  if (arrow.startsWith('cf-') || arrow === 'line' || arrow === 'arrow') return;
+  const anchor = endpointAnchor(route, end);
+  if (!anchor) return;
+  const idx = end === 'src' ? 0 : route.length - 1;
+  const inset = ARROW_LEN - TIP_INSET;
+  // Move the endpoint backwards along u (away from the tip).
+  route[idx] = {
+    x: anchor.tip.x - anchor.ux * inset,
+    y: anchor.tip.y - anchor.uy * inset,
+  };
+}
+
+function polylineToPath(points: readonly Point[]): string {
+  if (points.length === 0) return '';
+  const [first, ...rest] = points;
+  if (!first) return '';
+  return `M ${first.x} ${first.y}` + rest.map((p) => ` L ${p.x} ${p.y}`).join('');
+}
+
+function renderArrow(
+  route: Point[],
+  end: 'src' | 'dst',
+  shape: Arrowhead,
+  stroke: string,
+  strokeWidth: number,
+  opacity: number,
+): JSX.Element | null {
+  const a = endpointAnchor(route, end);
+  if (!a) return null;
+  const sw = Math.max(0.5, strokeWidth);
+  // Build a local frame: tip at origin, u pointing forward, p perpendicular.
+  // Then translate-and-rotate the whole shape into place.
+  const angle = (Math.atan2(a.uy, a.ux) * 180) / Math.PI;
+  const transform = `translate(${a.tip.x} ${a.tip.y}) rotate(${angle})`;
+
+  switch (shape) {
+    case 'triangle':
+    case 'filled-box':
+    case 'filled-diamond':
+    case 'filled-circle':
+    case 'box':
+    case 'diamond':
+    case 'circle':
+    case 'unfilled-triangle':
+    case 'arrow':
+    case 'line':
+      break;
+    default:
+      // Crow's foot variants fall through to their own renderer below.
+      break;
+  }
+
+  if (shape === 'arrow') {
+    // Open V shape: two strokes meeting at the tip.
+    return (
+      <g transform={transform} stroke={stroke} strokeWidth={sw} opacity={opacity} fill="none">
+        <polyline points={`${-ARROW_LEN},${-ARROW_HALF} 0,0 ${-ARROW_LEN},${ARROW_HALF}`} />
+      </g>
+    );
+  }
+  if (shape === 'line') {
+    // Single perpendicular tick at the tip.
+    return (
+      <g transform={transform} stroke={stroke} strokeWidth={sw} opacity={opacity}>
+        <line x1={0} y1={-ARROW_HALF} x2={0} y2={ARROW_HALF} />
+      </g>
+    );
+  }
+  if (shape === 'triangle' || shape === 'unfilled-triangle') {
+    const filled = shape === 'triangle';
+    return (
+      <g
+        transform={transform}
+        stroke={stroke}
+        strokeWidth={sw}
+        opacity={opacity}
+        fill={filled ? stroke : 'none'}
+        strokeLinejoin="miter"
+      >
+        <polygon points={`0,0 ${-ARROW_LEN},${-ARROW_HALF} ${-ARROW_LEN},${ARROW_HALF}`} />
+      </g>
+    );
+  }
+  if (shape === 'diamond' || shape === 'filled-diamond') {
+    const filled = shape === 'filled-diamond';
+    const half = ARROW_HALF;
+    const len = ARROW_LEN;
+    return (
+      <g
+        transform={transform}
+        stroke={stroke}
+        strokeWidth={sw}
+        opacity={opacity}
+        fill={filled ? stroke : 'none'}
+      >
+        <polygon points={`0,0 ${-len / 2},${-half} ${-len},0 ${-len / 2},${half}`} />
+      </g>
+    );
+  }
+  if (shape === 'circle' || shape === 'filled-circle') {
+    const filled = shape === 'filled-circle';
+    const r = ARROW_HALF;
+    return (
+      <g transform={transform} stroke={stroke} strokeWidth={sw} opacity={opacity}>
+        <circle cx={-r} cy={0} r={r} fill={filled ? stroke : 'none'} />
+      </g>
+    );
+  }
+  if (shape === 'box' || shape === 'filled-box') {
+    const filled = shape === 'filled-box';
+    const side = ARROW_HALF * 2;
+    return (
+      <g transform={transform} stroke={stroke} strokeWidth={sw} opacity={opacity}>
+        <rect
+          x={-side}
+          y={-ARROW_HALF}
+          width={side}
+          height={side}
+          fill={filled ? stroke : 'none'}
+        />
+      </g>
+    );
+  }
+  if (shape === 'cf-one') {
+    return (
+      <g transform={transform} stroke={stroke} strokeWidth={sw} opacity={opacity} fill="none">
+        <line x1={-ARROW_LEN} y1={-ARROW_HALF} x2={-ARROW_LEN} y2={ARROW_HALF} />
+      </g>
+    );
+  }
+  if (shape === 'cf-many') {
+    // Crow's foot: three lines fanning from a point near the tip out to the
+    // endpoint, indicating "many".
+    return (
+      <g transform={transform} stroke={stroke} strokeWidth={sw} opacity={opacity} fill="none">
+        <line x1={-ARROW_LEN} y1={0} x2={0} y2={-ARROW_HALF} />
+        <line x1={-ARROW_LEN} y1={0} x2={0} y2={0} />
+        <line x1={-ARROW_LEN} y1={0} x2={0} y2={ARROW_HALF} />
+      </g>
+    );
+  }
+  if (shape === 'cf-one-required') {
+    // Two perpendicular lines (||): "one and only one".
+    return (
+      <g transform={transform} stroke={stroke} strokeWidth={sw} opacity={opacity} fill="none">
+        <line x1={-ARROW_LEN} y1={-ARROW_HALF} x2={-ARROW_LEN} y2={ARROW_HALF} />
+        <line x1={-ARROW_LEN + 3} y1={-ARROW_HALF} x2={-ARROW_LEN + 3} y2={ARROW_HALF} />
+      </g>
+    );
+  }
+  if (shape === 'cf-many-required') {
+    // Crow's foot plus a perpendicular line: "one or many, required".
+    return (
+      <g transform={transform} stroke={stroke} strokeWidth={sw} opacity={opacity} fill="none">
+        <line x1={-ARROW_LEN} y1={-ARROW_HALF} x2={-ARROW_LEN} y2={ARROW_HALF} />
+        <line x1={-ARROW_LEN + 3} y1={0} x2={0} y2={-ARROW_HALF} />
+        <line x1={-ARROW_LEN + 3} y1={0} x2={0} y2={0} />
+        <line x1={-ARROW_LEN + 3} y1={0} x2={0} y2={ARROW_HALF} />
+      </g>
+    );
+  }
+  return null;
 }
