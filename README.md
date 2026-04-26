@@ -1,21 +1,18 @@
 # Daedalus
 
-D2-driven diagram editor with snap-to-grid layout and orthogonal edge routing. Desktop app built on Tauri 2.
+D2-driven diagram editor with snap-to-grid layout and orthogonal edge automatic routing.
 
 ## Features
 
-- **D2 as source of truth.** Point the app at a folder of `.d2` files (entry: `index.d2`); imports between files just work, and external edits stream in via a folder watcher.
-- **Graphical editor.** Drag nodes on a dot grid; positions and sizes snap to the grid. Drag blank canvas to pan. Centre, undo, and redo are one click away (Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z).
-- **Per-side connection ordering.** Each node has top/right/bottom/left sides; drag an anchor onto any other slot on any side to move that endpoint there. Ghost anchors light up the valid drop targets and snap to the nearest one.
-- **Orthogonal auto-routing.** Edges are routed by libavoid with configurable shape buffer, lead-out, and nudging. Hexagons, diamonds, and parallelograms register their actual polygons so routes hug the visible outline, not the bounding rect.
-- **D2-driven styling.** Node and connection styles (fill, stroke, stroke-width, stroke-dash, font color, bold/italic, opacity) come straight from D2. Slate (dark CAD-grey, default) and Paper (light) themes provide the defaults the user can override.
-- **Engine-layout compare.** Toggle between your edits and the engine's most recent ELK pass to spot drift; manual edits are stashed and restored when you toggle back.
-- **Edge labels with reading pills.** Each label gets a theme-coloured backing pill at the polyline's arc-length midpoint, so the text stays legible even where edges crowd each other.
-- **Watch mode reconciliation.** Renaming a label keeps your layout. Adding or removing nodes/edges shows a "needs relayout" banner; new nodes auto-place to the right of the existing bbox until you hit **Relayout**.
-- **Export.** SVG and PNG. Output is cropped to the diagram's bounding box (nodes + edges + labels) plus a configurable margin, with a transparent background by default. Editor chrome (anchors, selection rings) is stripped. **Copy PNG to clipboard** for one-click paste into Slack/Notion/etc.
-- **New project scaffolding.** Create a new project folder + sample D2 from the toolbar, all in one native dialog.
-- **Project-scoped + user prefs.** Routing/export settings persist in `.daedalus.json` per folder; theme, grid visibility, anchor visibility, and auto-reload are user prefs that survive across projects.
-- **Resumes where you left off.** The app reopens the last folder on launch, and the Save dialog remembers the last export directory.
+- **Write D2, drag the layout.** Your `.d2` files stay the source of truth; Daedalus never rewrites them. You move nodes around for clarity, and the positions, sizes, and connection ordering save alongside in `.daedalus.json`.
+- **Move connections wherever they read best.** Every node side (top, right, bottom, left) holds an ordered list of edges. Grab any endpoint and drop it on a different slot or a different side; ghost dots show every valid landing spot.
+- **Edges that don't trip over each other.** Orthogonal auto-routing detours around shapes, spaces parallel runs apart, and lands labels on a backing pill at each route's midpoint so the text reads even on dense boards.
+- **Live updates from your editor.** Save the `.d2` and the diagram refreshes. A label or colour change keeps your layout untouched. Add a node and it slots in next to the existing bounds without trampling what you already arranged.
+- **Drag, resize, snap.** Everything lands on the dot grid. Pan by dragging blank canvas; resize a selected node from the corner handle. Undo/redo (Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z) covers every layout move.
+- **Get the diagram out anywhere.** Export SVG or PNG, or copy a PNG straight to the clipboard for paste-into-Slack/Notion. Output is cropped to the content with editor chrome stripped and a transparent background.
+- **Your D2 styles come through.** Fills, strokes, dashes, font color, bold/italic, opacity — whatever you set in D2 lands in the render. Pick Slate (dark, default) or Paper (light) for the theme around it.
+- **A second opinion on layout.** Toggle between your edits and the engine's most recent ELK pass to spot drift. Your edits are stashed, not lost — flip back and they're right where you left them.
+- **One click to start.** Create a new project (folder + sample D2) or open an existing folder of `.d2` files. Daedalus reopens whichever you had last on the next launch.
 
 ## Using the app
 
@@ -38,7 +35,7 @@ D2-driven diagram editor with snap-to-grid layout and orthogonal edge routing. D
 
 ## Sidecar file
 
-Layout, viewport, and project routing/export settings live in `.daedalus.json` next to your D2 files. Schema version: 1. Older sidecars without a `settings` block, or that still reference the old `blueprint` theme name, are migrated transparently on read.
+Layout, viewport, and project routing/export settings live in `.daedalus.json` next to your D2 files. Schema version: 1.
 
 ## Minimal data-file example
 
