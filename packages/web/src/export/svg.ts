@@ -39,9 +39,21 @@ function inlineThemeTokens(source: SVGSVGElement, target: SVGSVGElement): void {
   })
     .filter(Boolean)
     .join(' ');
-  if (!tokens) return;
+  // The editor relies on `app.css` to set the default text size (12px on
+  // `.node text`). That stylesheet doesn't travel with the export, so SVG/PNG
+  // renderers fall back to 16px and labels look oversized. Bake the rules the
+  // export depends on into a `<style>` block.
+  const fontSans = computed.getPropertyValue('--font-sans').trim() || 'sans-serif';
+  const fontMono = computed.getPropertyValue('--font-mono').trim() || 'monospace';
   const styleEl = target.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'style');
-  styleEl.textContent = `svg { ${tokens} }`;
+  styleEl.textContent = [
+    tokens ? `svg { ${tokens} }` : '',
+    `text { font-family: ${fontSans}; font-size: 12px; }`,
+    `.node text { font-family: ${fontSans}; font-size: 12px; }`,
+    `.size-label, .version, .toolbar { font-family: ${fontMono}; }`,
+  ]
+    .filter(Boolean)
+    .join('\n');
   target.insertBefore(styleEl, target.firstChild);
 }
 

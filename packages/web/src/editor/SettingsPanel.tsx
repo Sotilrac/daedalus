@@ -7,6 +7,10 @@ export interface SettingsPanelProps {
   onAllowContextMenuChange: (v: boolean) => void;
   showGrid: boolean;
   onShowGridChange: (v: boolean) => void;
+  showAnchors: boolean;
+  onShowAnchorsChange: (v: boolean) => void;
+  theme: 'blueprint' | 'paper';
+  onThemeChange: (t: 'blueprint' | 'paper') => void;
 }
 
 export function SettingsPanel({
@@ -16,6 +20,10 @@ export function SettingsPanel({
   onAllowContextMenuChange,
   showGrid,
   onShowGridChange,
+  showAnchors,
+  onShowAnchorsChange,
+  theme,
+  onThemeChange,
 }: SettingsPanelProps): JSX.Element | null {
   const layout = useGraphStore((s) => s.layout);
   const updateSettings = useGraphStore((s) => s.updateSettings);
@@ -26,6 +34,19 @@ export function SettingsPanel({
     <div className="settings-panel" role="dialog" aria-label="Settings">
       <section>
         <h3>Display</h3>
+        <label
+          className="row"
+          title="Switch between the blueprint (dark) and paper (light) palettes."
+        >
+          <span>Theme</span>
+          <select
+            value={theme}
+            onChange={(e) => onThemeChange(e.target.value as 'blueprint' | 'paper')}
+          >
+            <option value="blueprint">Blueprint</option>
+            <option value="paper">Paper</option>
+          </select>
+        </label>
         <label className="row checkbox" title="Toggle the dot grid in the editor.">
           <input
             type="checkbox"
@@ -33,6 +54,17 @@ export function SettingsPanel({
             onChange={(e) => onShowGridChange(e.target.checked)}
           />
           <span>Show grid</span>
+        </label>
+        <label
+          className="row checkbox"
+          title="Show the round connection anchors on each node side."
+        >
+          <input
+            type="checkbox"
+            checked={showAnchors}
+            onChange={(e) => onShowAnchorsChange(e.target.checked)}
+          />
+          <span>Show anchors</span>
         </label>
       </section>
       <section>

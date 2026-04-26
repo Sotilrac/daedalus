@@ -308,8 +308,10 @@ export function collectEdgePins(model: Model, layout: Layout): PinnedEdge[] {
 
     const fromSide = ensureContainsEdge(fromNode.connections, sides.fromSide, edgeId);
     const toSide = ensureContainsEdge(toNode.connections, sides.toSide, edgeId);
-    const from = pinForEdge(fromNode, fromSide, edgeId);
-    const to = pinForEdge(toNode, toSide, edgeId);
+    const fromShape = model.nodes[edge.from]?.shape;
+    const toShape = model.nodes[edge.to]?.shape;
+    const from = pinForEdge(fromNode, fromSide, edgeId, fromShape);
+    const to = pinForEdge(toNode, toSide, edgeId, toShape);
     if (!from || !to) continue;
 
     result.push({ id: edgeId, from, to, fromSide, toSide });

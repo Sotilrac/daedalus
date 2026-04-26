@@ -6,6 +6,7 @@
   "permissions": [
     "core:default",
     "dialog:default",
+    "clipboard-manager:allow-write-image",
     "fs:default",
     "fs:allow-read-text-file",
     "fs:allow-write-text-file",

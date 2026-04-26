@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import type { EdgeId, NodeId, Side, NodeLayout } from '@daedalus/shared';
-import { SIDES } from '@daedalus/shared';
+import type { EdgeId, NodeId, ShapeKind, Side, NodeLayout } from '@daedalus/shared';
+import { SIDES, personBodyTop } from '@daedalus/shared';
 import { useGraphStore } from '../store/graphStore.js';
 
 interface Props {
   nodeId: NodeId;
   width: number;
   height: number;
+  shape: ShapeKind;
 }
 
 interface Editing {
@@ -31,7 +32,7 @@ interface Candidate {
 
 const SNAP_RADIUS = 28;
 
-export function AnchorControls({ nodeId, width, height }: Props): JSX.Element {
+export function AnchorControls({ nodeId, width, height, shape }: Props): JSX.Element {
   const layout = useGraphStore((s) => s.layout);
   const moveEdgeAnchor = useGraphStore((s) => s.moveEdgeAnchor);
   const clearSelection = useGraphStore((s) => s.clearSelection);
@@ -42,7 +43,7 @@ export function AnchorControls({ nodeId, width, height }: Props): JSX.Element {
   const node = layout.nodes[nodeId];
   if (!node) return <g />;
 
-  const candidates = computeCandidates(node, editing, width, height);
+  const candidates = computeCandidates(node, editing, width, height, shape);
   const nearest =
     editing && editing.moved
       ? nearestCandidate(candidates, editing.cursorX, editing.cursorY)
@@ -63,6 +64,7 @@ export function AnchorControls({ nodeId, width, height }: Props): JSX.Element {
             count: node.connections[side].length,
             w: width,
             h: height,
+            shape,
           });
           const cx = isActive && editing ? editing.cursorX : home.x;
           const cy = isActive && editing ? editing.cursorY : home.y;
@@ -157,6 +159,7 @@ function computeCandidates(
   editing: Editing | null,
   w: number,
   h: number,
+  shape: ShapeKind,
 ): Candidate[] {
   if (!editing) return [];
   const out: Candidate[] = [];
@@ -169,7 +172,7 @@ function computeCandidates(
     const finalCount = isSameSide ? list.length : list.length + 1;
     for (let i = 0; i < finalCount; i += 1) {
       if (isSameSide && i === editing.fromIndex) continue;
-      const { x, y } = localPin({ side, index: i, count: finalCount, w, h });
+      const { x, y } = localPin({ side, index: i, count: finalCount, w, h, shape });
       out.push({ side, index: i, x, y });
     }
   }
@@ -193,19 +196,28 @@ function distance(ax: number, ay: number, bx: number, by: number): number {
   return Math.hypot(ax - bx, ay - by);
 }
 
-function localPin(opts: { side: Side; index: number; count: number; w: number; h: number }): {
-  x: number;
-  y: number;
-} {
+function localPin(opts: {
+  side: Side;
+  index: number;
+  count: number;
+  w: number;
+  h: number;
+  shape: ShapeKind;
+}): { x: number; y: number } {
   const t = (opts.index + 1) / (opts.count + 1);
+  // Person's left/right anchors live on the body rectangle only (top of the
+  // body to the bottom edge), so connection lines never run to the head.
+  const personSide = opts.shape === 'person' && (opts.side === 'left' || opts.side === 'right');
+  const yOffset = personSide ? personBodyTop(opts.w, opts.h) : 0;
+  const yLength = personSide ? opts.h - yOffset : opts.h;
   switch (opts.side) {
     case 'top':
       return { x: opts.w * t, y: 0 };
     case 'bottom':
       return { x: opts.w * t, y: opts.h };
     case 'left':
-      return { x: 0, y: opts.h * t };
+      return { x: 0, y: yOffset + yLength * t };
     case 'right':
-      return { x: opts.w, y: opts.h * t };
+      return { x: opts.w, y: yOffset + yLength * t };
   }
 }

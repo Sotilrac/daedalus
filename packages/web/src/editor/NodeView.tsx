@@ -10,7 +10,13 @@ const LABEL_HORIZONTAL_PADDING = 12; // total inset; 6px each side
 
 const DRAG_THRESHOLD = 3; // px before treating a press as a drag
 
-export function NodeView({ node }: { node: RenderNode }): JSX.Element {
+export function NodeView({
+  node,
+  showAnchors,
+}: {
+  node: RenderNode;
+  showAnchors: boolean;
+}): JSX.Element {
   const moveNodes = useGraphStore((s) => s.moveNodes);
   const resizeNode = useGraphStore((s) => s.resizeNode);
   const selection = useGraphStore((s) => s.selection);
@@ -176,7 +182,9 @@ export function NodeView({ node }: { node: RenderNode }): JSX.Element {
           />
         </>
       )}
-      <AnchorControls nodeId={node.id} width={node.w} height={node.h} />
+      {showAnchors && (
+        <AnchorControls nodeId={node.id} width={node.w} height={node.h} shape={node.shape} />
+      )}
     </g>
   );
 }

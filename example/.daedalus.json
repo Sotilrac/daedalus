@@ -122,10 +122,11 @@
           "h": 96,
           "connections": {
             "top": [],
-            "right": [],
-            "bottom": [
-              "piedpiper.eng.gilfoyle->piedpiper.middleout#0",
+            "right": [
               "piedpiper.eng.bighead->piedpiper.eng.gilfoyle#0"
+            ],
+            "bottom": [
+              "piedpiper.eng.gilfoyle->piedpiper.middleout#0"
             ],
             "left": [
               "piedpiper.eng.dinesh->piedpiper.eng.gilfoyle#0"
@@ -149,15 +150,15 @@
           }
         },
         "piedpiper.eng.bighead": {
-          "x": 1744,
-          "y": -2224,
+          "x": 1728,
+          "y": -2256,
           "w": 128,
           "h": 96,
           "connections": {
-            "top": [
+            "top": [],
+            "right": [
               "piedpiper.eng.bighead->piedpiper.eng.gilfoyle#0"
             ],
-            "right": [],
             "bottom": [
               "piedpiper.eng.bighead->nothotdog#0"
             ],
@@ -167,13 +168,12 @@
           }
         },
         "piedpiper.middleout": {
-          "x": 1200,
-          "y": -1936,
-          "w": 304,
-          "h": 80,
+          "x": 1232,
+          "y": -1952,
+          "w": 224,
+          "h": 128,
           "connections": {
             "top": [
-              "piedpiper.founders.erlich->piedpiper.middleout#0",
               "piedpiper.founders.richard->piedpiper.middleout#0",
               "piedpiper.eng.dinesh->piedpiper.middleout#0"
             ],
@@ -184,6 +184,7 @@
               "piedpiper.middleout->pipeline.ingestor#0"
             ],
             "left": [
+              "piedpiper.founders.erlich->piedpiper.middleout#0",
               "hooli.endframe->piedpiper.middleout#0",
               "hooli.nucleus->piedpiper.middleout#0"
             ]
@@ -395,7 +396,7 @@
         },
         "hooli.gavin": {
           "x": 432,
-          "y": -1648,
+          "y": -1632,
           "w": 128,
           "h": 96,
           "connections": {
@@ -413,7 +414,7 @@
         },
         "hooli.endframe": {
           "x": 240,
-          "y": -1648,
+          "y": -1632,
           "w": 128,
           "h": 96,
           "connections": {
@@ -427,7 +428,7 @@
         },
         "hooli.nucleus": {
           "x": 448,
-          "y": -1424,
+          "y": -1408,
           "w": 96,
           "h": 64,
           "connections": {
@@ -445,7 +446,7 @@
         },
         "hooli.hoolicloud": {
           "x": 432,
-          "y": -1280,
+          "y": -1264,
           "w": 128,
           "h": 64,
           "connections": {
@@ -459,7 +460,7 @@
         },
         "hooli.hoolixyz": {
           "x": 624,
-          "y": -1424,
+          "y": -1408,
           "w": 96,
           "h": 64,
           "connections": {
@@ -605,7 +606,7 @@
         },
         "piedpiper.founders.erlich->piedpiper.middleout#0": {
           "fromSide": "bottom",
-          "toSide": "top"
+          "toSide": "left"
         },
         "piedpiper.founders.erlich->piedpiper.pipey#0": {
           "fromSide": "bottom",
@@ -624,8 +625,8 @@
           "toSide": "left"
         },
         "piedpiper.eng.bighead->piedpiper.eng.gilfoyle#0": {
-          "fromSide": "top",
-          "toSide": "bottom"
+          "fromSide": "right",
+          "toSide": "right"
         },
         "piedpiper.middleout->pipeline.ingestor#0": {
           "fromSide": "bottom",

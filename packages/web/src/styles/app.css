@@ -104,7 +104,6 @@ button:disabled {
       while dragging looks broken and serves no purpose. The toolbar/banners
       sit outside this container and remain selectable. */
   user-select: none;
-  user-select: none;
 }
 
 .canvas-host svg {
@@ -126,17 +125,60 @@ button:disabled {
   background: var(--paper-sunk);
   border: 1px solid var(--negative);
   color: var(--negative);
-  padding: 8px 12px;
+  padding: 8px 36px 8px 12px;
   font-family: var(--font-mono);
   font-size: 12px;
+  line-height: 1.4;
   border-radius: var(--radius);
-  max-width: 80ch;
+  width: min(80ch, calc(100% - 48px));
+  max-height: 240px;
+  overflow-y: auto;
+  white-space: pre-wrap;
   z-index: 10;
+  box-shadow: 0 4px 16px rgb(var(--shadow-rgb) / 18%);
 }
 
 .banner.warning {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+.banner-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.banner-list li + li {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px dashed currentcolor;
+  opacity: 0.95;
+}
+
+.banner-close {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  font-size: 18px;
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+  border-radius: var(--radius);
+}
+
+.banner-close:hover {
+  background: rgb(var(--shadow-rgb) / 10%);
+  color: inherit;
+  border-color: transparent;
 }
 
 .empty-state {
@@ -246,6 +288,15 @@ button:disabled {
 
 .settings-panel input[type='checkbox'] {
   accent-color: var(--accent);
+}
+
+.settings-panel select {
+  font: inherit;
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--ink-muted);
+  border-radius: var(--radius);
+  padding: 2px 6px;
 }
 
 .toolbar-wrap {

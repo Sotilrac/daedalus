@@ -16,8 +16,11 @@ import {
 } from '@daedalus/shared/sidecar';
 import { svgToBlob } from './export/svg.js';
 import { svgToPngBlob } from './export/png.js';
+import { svgToImageData } from './export/imagedata.js';
+import { Image as TauriImage } from '@tauri-apps/api/image';
 import { writeFile } from '@tauri-apps/plugin-fs';
 import { save as saveDialog } from '@tauri-apps/plugin-dialog';
+import { writeImage as clipboardWriteImage } from '@tauri-apps/plugin-clipboard-manager';
 
 export function App(): JSX.Element {
   const source = useSourceStore((s) => s.source);
@@ -40,6 +43,7 @@ export function App(): JSX.Element {
   const [autoReload, setAutoReload] = useState<boolean>(recallAutoReload);
   const [allowContextMenu, setAllowContextMenu] = useState<boolean>(recallAllowContextMenu);
   const [showGrid, setShowGrid] = useState<boolean>(recallShowGrid);
+  const [showAnchors, setShowAnchors] = useState<boolean>(recallShowAnchors);
 
   const svgRef = useRef<SVGSVGElement | null>(null);
   const hostRef = useRef<HTMLElement | null>(null);
@@ -73,6 +77,12 @@ export function App(): JSX.Element {
       localStorage.setItem(SHOW_GRID_KEY, String(showGrid));
     }
   }, [showGrid]);
+
+  useEffect(() => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(SHOW_ANCHORS_KEY, String(showAnchors));
+    }
+  }, [showAnchors]);
 
   // Load D2 files + sidecar, recompile, reconcile. Reads the latest model
   // from the store at call time. Returned promise resolves once the load
@@ -275,6 +285,24 @@ export function App(): JSX.Element {
     rememberExportDir(finalPath);
   }, [rootPath, layout]);
 
+  const onCopyPng = useCallback(async () => {
+    if (!svgRef.current || !layout) return;
+    try {
+      // Tauri's clipboard plugin expects raw RGBA + dimensions (not PNG-encoded
+      // bytes). We rasterise the SVG straight to a canvas and forward the
+      // pixels via the Image helper.
+      const { width, height, rgba } = await svgToImageData(
+        svgRef.current,
+        exportOpts(svgRef.current, layout),
+        2,
+      );
+      const image = await TauriImage.new(rgba, width, height);
+      await clipboardWriteImage(image);
+    } catch (err) {
+      setErrors(normalizeD2Error(err));
+    }
+  }, [layout, setErrors]);
+
   return (
     <div className="app" data-theme={layout?.viewport.theme ?? 'blueprint'}>
       <header className="toolbar">
@@ -338,17 +366,18 @@ export function App(): JSX.Element {
         <button onClick={onCenter} disabled={!layout}>
           Center
         </button>
-        <button
-          onClick={() => setTheme(layout?.viewport.theme === 'paper' ? 'blueprint' : 'paper')}
-          disabled={!layout}
-        >
-          Theme
-        </button>
         <button onClick={() => void onExportSvg()} disabled={!layout}>
           Export SVG
         </button>
         <button onClick={() => void onExportPng()} disabled={!layout}>
           Export PNG
+        </button>
+        <button
+          onClick={() => void onCopyPng()}
+          disabled={!layout}
+          title="Copy a PNG of the diagram to the clipboard."
+        >
+          Copy PNG
         </button>
         <span className="toolbar-wrap">
           <button
@@ -366,6 +395,10 @@ export function App(): JSX.Element {
               onAllowContextMenuChange={setAllowContextMenu}
               showGrid={showGrid}
               onShowGridChange={setShowGrid}
+              showAnchors={showAnchors}
+              onShowAnchorsChange={setShowAnchors}
+              theme={layout?.viewport.theme ?? 'blueprint'}
+              onThemeChange={setTheme}
             />
           )}
         </span>
@@ -386,11 +419,12 @@ export function App(): JSX.Element {
             <button onClick={() => void onPickFolder()}>Open folder</button>
           </div>
         )}
-        <ErrorOverlay errors={errors} />
+        <ErrorOverlay errors={errors} onDismiss={() => setErrors([])} />
         <Canvas
           ref={svgRef}
           hostRef={hostRef as unknown as React.RefObject<HTMLDivElement | null>}
           showGrid={showGrid}
+          showAnchors={showAnchors}
         />
       </main>
     </div>
@@ -476,6 +510,7 @@ const LAST_FOLDER_KEY = 'daedalus.lastFolder';
 const AUTO_RELOAD_KEY = 'daedalus.autoReload';
 const ALLOW_CTX_KEY = 'daedalus.allowContextMenu';
 const SHOW_GRID_KEY = 'daedalus.showGrid';
+const SHOW_ANCHORS_KEY = 'daedalus.showAnchors';
 
 function recallAutoReload(): boolean {
   if (typeof localStorage === 'undefined') return true;
@@ -491,6 +526,12 @@ function recallAllowContextMenu(): boolean {
 function recallShowGrid(): boolean {
   if (typeof localStorage === 'undefined') return true;
   const v = localStorage.getItem(SHOW_GRID_KEY);
+  return v === null ? true : v === 'true';
+}
+
+function recallShowAnchors(): boolean {
+  if (typeof localStorage === 'undefined') return true;
+  const v = localStorage.getItem(SHOW_ANCHORS_KEY);
   return v === null ? true : v === 'true';
 }
 

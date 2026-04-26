@@ -15,6 +15,7 @@ import { GridDefs } from './GridDefs.js';
 interface CanvasProps {
   hostRef: RefObject<HTMLDivElement | null>;
   showGrid: boolean;
+  showAnchors: boolean;
 }
 
 interface BBox {
@@ -25,7 +26,7 @@ interface BBox {
 }
 
 export const Canvas = forwardRef<SVGSVGElement, CanvasProps>(function Canvas(
-  { hostRef, showGrid },
+  { hostRef, showGrid, showAnchors },
   ref,
 ): JSX.Element | null {
   const plan = useGraphStore((s) => s.plan);
@@ -169,7 +170,7 @@ export const Canvas = forwardRef<SVGSVGElement, CanvasProps>(function Canvas(
             {plan.nodes
               .filter((n) => n.isContainer)
               .map((n) => (
-                <NodeView key={n.id} node={n} />
+                <NodeView key={n.id} node={n} showAnchors={showAnchors} />
               ))}
           </g>
           <g className="edges">
@@ -181,7 +182,7 @@ export const Canvas = forwardRef<SVGSVGElement, CanvasProps>(function Canvas(
             {plan.nodes
               .filter((n) => !n.isContainer)
               .map((n) => (
-                <NodeView key={n.id} node={n} />
+                <NodeView key={n.id} node={n} showAnchors={showAnchors} />
               ))}
           </g>
         </g>
