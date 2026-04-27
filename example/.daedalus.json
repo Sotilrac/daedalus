@@ -383,9 +383,9 @@
           }
         },
         "hooli": {
-          "x": 208,
+          "x": 224,
           "y": -1696,
-          "w": 544,
+          "w": 512,
           "h": 512,
           "connections": {
             "top": [],
@@ -397,7 +397,7 @@
           }
         },
         "hooli.gavin": {
-          "x": 432,
+          "x": 448,
           "y": -1632,
           "w": 128,
           "h": 96,
@@ -415,21 +415,21 @@
           }
         },
         "hooli.endframe": {
-          "x": 240,
+          "x": 256,
           "y": -1632,
           "w": 128,
           "h": 96,
           "connections": {
             "top": [],
-            "right": [],
-            "bottom": [
+            "right": [
               "hooli.endframe->piedpiper.middleout#0"
             ],
+            "bottom": [],
             "left": []
           }
         },
         "hooli.nucleus": {
-          "x": 416,
+          "x": 432,
           "y": -1408,
           "w": 96,
           "h": 64,
@@ -447,7 +447,7 @@
           }
         },
         "hooli.hoolicloud": {
-          "x": 400,
+          "x": 416,
           "y": -1264,
           "w": 128,
           "h": 64,
@@ -496,10 +496,10 @@
           "h": 96,
           "connections": {
             "top": [],
-            "right": [],
-            "bottom": [
+            "right": [
               "money.russ->piedpiper#0"
             ],
+            "bottom": [],
             "left": []
           }
         },
@@ -553,34 +553,34 @@
         },
         "nothotdog": {
           "x": 992,
-          "y": -1648,
+          "y": -1600,
           "w": 160,
           "h": 96,
           "connections": {
-            "top": [
+            "top": [],
+            "right": [
               "piedpiper.eng.bighead->nothotdog#0"
             ],
-            "right": [],
-            "bottom": [
+            "bottom": [],
+            "left": [
               "nothotdog->seefood#0"
-            ],
-            "left": []
+            ]
           }
         },
         "seefood": {
-          "x": 992,
-          "y": -1488,
+          "x": 752,
+          "y": -1584,
           "w": 160,
           "h": 64,
           "connections": {
-            "top": [
+            "top": [],
+            "right": [
               "nothotdog->seefood#0"
             ],
-            "right": [],
-            "bottom": [],
-            "left": [
+            "bottom": [
               "seefood->hooli.hoolixyz#0"
-            ]
+            ],
+            "left": []
           }
         },
         "aviato": {
@@ -700,7 +700,7 @@
           "toSide": "top"
         },
         "hooli.endframe->piedpiper.middleout#0": {
-          "fromSide": "bottom",
+          "fromSide": "right",
           "toSide": "left"
         },
         "hooli.gavin->hooli.hoolixyz#0": {
@@ -712,7 +712,7 @@
           "toSide": "left"
         },
         "money.russ->piedpiper#0": {
-          "fromSide": "bottom",
+          "fromSide": "right",
           "toSide": "left"
         },
         "money.raviga->piedpiper#0": {
@@ -741,14 +741,14 @@
         },
         "piedpiper.eng.bighead->nothotdog#0": {
           "fromSide": "bottom",
-          "toSide": "top"
+          "toSide": "right"
         },
         "nothotdog->seefood#0": {
-          "fromSide": "bottom",
-          "toSide": "top"
+          "fromSide": "left",
+          "toSide": "right"
         },
         "seefood->hooli.hoolixyz#0": {
-          "fromSide": "left",
+          "fromSide": "bottom",
           "toSide": "top"
         },
         "newinternet.condorcam->hooli.gavin#0": {

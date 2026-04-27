@@ -52,7 +52,10 @@ import {
 } from './prefs.js';
 import { DISPLAY_NAME, VERSION_LABEL } from './branding.js';
 import { SAMPLE_D2 } from './sample.js';
+import { onExternalLink } from './util/openExternal.js';
 import { ensureExtension, exportDefaultPath, rememberExportDir } from './util/paths.js';
+
+const RELEASES_URL = 'https://github.com/Sotilrac/daedalus/releases';
 
 export function App(): JSX.Element {
   const source = useSourceStore((s) => s.source);
@@ -625,10 +628,11 @@ export function App(): JSX.Element {
           </span>
           <a
             className="version"
-            href="https://github.com/Sotilrac/daedalus/releases"
+            href={RELEASES_URL}
             target="_blank"
             rel="noopener noreferrer"
             title="View releases on GitHub"
+            onClick={onExternalLink(RELEASES_URL)}
           >
             {VERSION_LABEL}
           </a>

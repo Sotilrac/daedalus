@@ -1,4 +1,8 @@
 import { DISPLAY_NAME, VERSION_LABEL } from '../branding.js';
+import { onExternalLink } from '../util/openExternal.js';
+
+const RELEASES_URL = 'https://github.com/Sotilrac/daedalus/releases';
+const SOURCE_URL = 'https://gitlab.com/sotilrac/daedalus';
 
 // Pure-presentation card used both as the home-page empty state and as an
 // overlay when the user clicks the bottom-left brand while a project is open.
@@ -35,14 +39,20 @@ export function WelcomeCard(): JSX.Element {
       </section>
       <footer className="welcome-footer">
         <a
-          href="https://github.com/Sotilrac/daedalus/releases"
+          href={RELEASES_URL}
           target="_blank"
           rel="noopener noreferrer"
           title="View releases on GitHub"
+          onClick={onExternalLink(RELEASES_URL)}
         >
           {VERSION_LABEL}
         </a>
-        <a href="https://gitlab.com/sotilrac/daedalus" target="_blank" rel="noopener noreferrer">
+        <a
+          href={SOURCE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={onExternalLink(SOURCE_URL)}
+        >
           View source on GitLab
         </a>
       </footer>
