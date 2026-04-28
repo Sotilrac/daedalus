@@ -45,6 +45,7 @@ export interface ResolvedNodeStyle {
   strokeWidth: number;
   strokeDasharray?: string;
   fontColor: string;
+  fontSize?: number; // px; only set when D2 specified one (else renderer default)
   fontWeight: number;
   fontStyle: 'normal' | 'italic';
   opacity: number;
@@ -76,6 +77,7 @@ export function resolveNodeStyle(palette: ThemePalette, style: NodeStyle): Resol
     opacity: style.opacity ?? 1,
   };
   if (style.strokeDash) out.strokeDasharray = `${style.strokeDash} ${style.strokeDash}`;
+  if (typeof style.fontSize === 'number' && style.fontSize > 0) out.fontSize = style.fontSize;
   return out;
 }
 

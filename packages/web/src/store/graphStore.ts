@@ -79,6 +79,13 @@ export interface GraphState {
   moveEdgeAnchor(node: NodeId, edgeId: EdgeId, toSide: Side, toIndex: number): Promise<void>;
   setTheme(theme: 'slate' | 'paper'): void;
   updateSettings(patch: SettingsPatch): Promise<void>;
+  // Align centres of every selected node to the first selected node's
+  // centre. `axis: 'x'` aligns horizontal centres (vertical line of
+  // alignment); `axis: 'y'` aligns vertical centres.
+  alignCenters(axis: 'x' | 'y'): Promise<void>;
+  // Resize every selected node to match the first selected node's w/h,
+  // anchored at each node's centre so they don't appear to jump.
+  matchSize(): Promise<void>;
   undo(): Promise<void>;
   redo(): Promise<void>;
   closeProject(): void;
@@ -453,6 +460,67 @@ export const useGraphStore = create<GraphState>((set, get) => ({
       const plan = buildRenderPlan({ model, layout: nextLayout, routes: get().routes });
       set({ layout: nextLayout, plan });
     }
+  },
+
+  async alignCenters(axis) {
+    const { model, layout, selection, showingAuto } = get();
+    if (!model || !layout || showingAuto || selection.length < 2) return;
+    const refId = selection[0];
+    const ref = refId ? layout.nodes[refId] : undefined;
+    if (!ref) return;
+    snapshotForHistory(set, get);
+    const grid = layout.grid.size;
+    const nextNodes: Record<NodeId, Layout['nodes'][string]> = { ...layout.nodes };
+    if (axis === 'x') {
+      const refCx = ref.x + ref.w / 2;
+      for (const id of selection.slice(1)) {
+        const n = nextNodes[id];
+        if (!n) continue;
+        const targetX = snap(refCx - n.w / 2, grid);
+        if (targetX !== n.x) nextNodes[id] = { ...n, x: targetX };
+      }
+    } else {
+      const refCy = ref.y + ref.h / 2;
+      for (const id of selection.slice(1)) {
+        const n = nextNodes[id];
+        if (!n) continue;
+        const targetY = snap(refCy - n.h / 2, grid);
+        if (targetY !== n.y) nextNodes[id] = { ...n, y: targetY };
+      }
+    }
+    const nextLayout: Layout = { ...layout, nodes: nextNodes };
+    const routes = await routeEdges(model, nextLayout);
+    const plan = buildRenderPlan({ model, layout: nextLayout, routes });
+    set({ layout: nextLayout, routes, plan });
+  },
+
+  async matchSize() {
+    const { model, layout, selection, showingAuto } = get();
+    if (!model || !layout || showingAuto || selection.length < 2) return;
+    const refId = selection[0];
+    const ref = refId ? layout.nodes[refId] : undefined;
+    if (!ref) return;
+    snapshotForHistory(set, get);
+    const grid = layout.grid.size;
+    const refW = ref.w;
+    const refH = ref.h;
+    const nextNodes: Record<NodeId, Layout['nodes'][string]> = { ...layout.nodes };
+    for (const id of selection.slice(1)) {
+      const n = nextNodes[id];
+      if (!n) continue;
+      // Resize around the node's existing centre so the visual position
+      // doesn't lurch sideways.
+      const cx = n.x + n.w / 2;
+      const cy = n.y + n.h / 2;
+      const newX = snap(cx - refW / 2, grid);
+      const newY = snap(cy - refH / 2, grid);
+      if (n.w === refW && n.h === refH && n.x === newX && n.y === newY) continue;
+      nextNodes[id] = { ...n, x: newX, y: newY, w: refW, h: refH };
+    }
+    const nextLayout: Layout = { ...layout, nodes: nextNodes };
+    const routes = await routeEdges(model, nextLayout);
+    const plan = buildRenderPlan({ model, layout: nextLayout, routes });
+    set({ layout: nextLayout, routes, plan });
   },
 
   async undo() {

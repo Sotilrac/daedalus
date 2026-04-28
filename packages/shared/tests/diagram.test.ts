@@ -100,6 +100,26 @@ describe('diagramToModel', () => {
     expect(e?.dstArrow).toBeUndefined();
   });
 
+  it('maps fontSize on a node so D2 `style.font-size: NN` reaches the renderer', () => {
+    const diagram = asDiagram({
+      shapes: [
+        { id: 'title', type: 'text', fontSize: 60, label: 'Title' },
+      ] as unknown as D2Diagram['shapes'],
+      connections: [],
+    });
+    expect(diagramToModel(diagram).nodes.title?.style.fontSize).toBe(60);
+  });
+
+  it('drops zero or missing fontSize', () => {
+    const diagram = asDiagram({
+      shapes: [{ id: 'a' }, { id: 'b', fontSize: 0 }] as unknown as D2Diagram['shapes'],
+      connections: [],
+    });
+    const m = diagramToModel(diagram);
+    expect(m.nodes.a?.style.fontSize).toBeUndefined();
+    expect(m.nodes.b?.style.fontSize).toBeUndefined();
+  });
+
   it('counts repeated edges with monotonic indices', () => {
     const diagram = asDiagram({
       shapes: [{ id: 'a' }, { id: 'b' }] as unknown as D2Diagram['shapes'],

@@ -8,12 +8,15 @@ import { ErrorOverlay } from './editor/ErrorOverlay.js';
 import { SettingsPanel } from './editor/SettingsPanel.js';
 import { WelcomeCard } from './editor/WelcomeCard.js';
 import {
+  AlignHorizontalIcon,
+  AlignVerticalIcon,
   CenterIcon,
   CompareIcon,
   CopyIcon,
   ExportPngIcon,
   ExportSvgIcon,
   FolderOpenIcon,
+  MatchSizeIcon,
   NewProjectIcon,
   RedoIcon,
   ReloadIcon,
@@ -77,6 +80,10 @@ export function App(): JSX.Element {
   const canRedo = useGraphStore((s) => s.future.length > 0);
   const undo = useGraphStore((s) => s.undo);
   const redo = useGraphStore((s) => s.redo);
+  const selectionCount = useGraphStore((s) => s.selection.length);
+  const alignCenters = useGraphStore((s) => s.alignCenters);
+  const matchSize = useGraphStore((s) => s.matchSize);
+  const canAlign = selectionCount >= 2 && !showingAuto;
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Re-opens the welcome card on top of an open project (the home page renders
@@ -526,6 +533,34 @@ export function App(): JSX.Element {
           data-attention={needsRelayout || undefined}
         >
           <RelayoutIcon />
+        </button>
+        <span className="toolbar-divider" aria-hidden />
+        <button
+          className="icon-btn"
+          onClick={() => void alignCenters('x')}
+          disabled={!canAlign}
+          title="Align horizontal centres (first selected is the reference)"
+          aria-label="Align horizontal centres"
+        >
+          <AlignVerticalIcon />
+        </button>
+        <button
+          className="icon-btn"
+          onClick={() => void alignCenters('y')}
+          disabled={!canAlign}
+          title="Align vertical centres (first selected is the reference)"
+          aria-label="Align vertical centres"
+        >
+          <AlignHorizontalIcon />
+        </button>
+        <button
+          className="icon-btn"
+          onClick={() => void matchSize()}
+          disabled={!canAlign}
+          title="Match size to first selected"
+          aria-label="Match size"
+        >
+          <MatchSizeIcon />
         </button>
         <span className="toolbar-divider" aria-hidden />
         <button

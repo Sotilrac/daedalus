@@ -10,6 +10,11 @@ const LABEL_HORIZONTAL_PADDING = 12; // total inset; 6px each side
 
 const DRAG_THRESHOLD = 3; // px before treating a press as a drag
 
+// Width of the invisible "border halo" rect that catches clicks within this
+// many pixels of the node's bbox edge. Scales with stroke-width so a thicker
+// visible border still gets a generous click target.
+const MIN_HIT_HALO = 5;
+
 export function NodeView({
   node,
   showAnchors,
@@ -25,6 +30,7 @@ export function NodeView({
     pointerX: number;
     pointerY: number;
     wasSelected: boolean;
+    meta: boolean;
     prevSelLen: number;
   } | null>(null);
   // Tracked outside React state so a moving pointer doesn't churn renders.
@@ -50,16 +56,26 @@ export function NodeView({
         const target = e.currentTarget;
         target.setPointerCapture(e.pointerId);
 
-        // Selection on press: only *grow* the selection here. Demoting a
-        // multi-selection to a single click target is deferred to pointer-up
-        // so dragging an already-selected node moves the whole selection
-        // instead of collapsing it.
+        // Selection model: plain click selects only this node; ctrl/cmd
+        // extends or toggles. We resolve the press eagerly so the drag uses
+        // the post-click selection — but we defer ctrl-toggle-off and the
+        // multi-to-single collapse to pointer-up so a drag preserves intent.
+        const meta = e.ctrlKey || e.metaKey;
         const store = useGraphStore.getState();
         const sel = store.selection;
         const wasSelected = sel.includes(node.id);
-        const dragSel = wasSelected ? sel : [...sel, node.id];
-        if (!wasSelected) store.setSelection(dragSel);
 
+        if (meta) {
+          if (!wasSelected) store.addToSelection(node.id);
+        } else if (!wasSelected) {
+          // Plain click on something not selected: replace.
+          store.selectOnly(node.id);
+        }
+        // Plain click on an already-selected node: leave the selection alone
+        // for now so a drag operates on the whole group; if it turns out to
+        // be a true click (no movement), pointer-up collapses to selectOnly.
+
+        const dragSel = useGraphStore.getState().selection;
         const layout = store.layout;
         const origins: Record<NodeId, { x: number; y: number }> = {};
         for (const id of dragSel) {
@@ -73,6 +89,7 @@ export function NodeView({
           pointerX: e.clientX,
           pointerY: e.clientY,
           wasSelected,
+          meta,
           prevSelLen: sel.length,
         });
       }}
@@ -93,24 +110,49 @@ export function NodeView({
       }}
       onPointerUp={(e) => {
         e.currentTarget.releasePointerCapture(e.pointerId);
-        if (drag) {
-          if (!movedRef.current && drag.wasSelected && drag.prevSelLen > 1) {
-            // True click on a node that was already part of a multi-selection:
-            // collapse to single-select so the resize handle appears here.
+        if (drag && !movedRef.current) {
+          // True click (no drag): refine selection now that we know it
+          // wasn't the start of a drag gesture.
+          if (drag.meta && drag.wasSelected) {
+            // Ctrl-clicking an already-selected node toggles it off.
+            const sel = useGraphStore.getState().selection;
+            useGraphStore.getState().setSelection(sel.filter((id) => id !== node.id));
+          } else if (!drag.meta && drag.wasSelected && drag.prevSelLen > 1) {
+            // Plain click on a node that was part of a multi-selection:
+            // collapse to single-select so the resize handle reappears here.
             useGraphStore.getState().selectOnly(node.id);
-          } else if (movedRef.current && Object.keys(drag.origins).length === 1) {
-            // Single-node drag: clear selection on release so the user isn't
-            // left with a transient selection from "just touch and move".
-            // Multi-drags keep their selection so the user can keep adjusting.
-            useGraphStore.getState().clearSelection();
           }
         }
         useGraphStore.getState().setInteracting(false);
         setDrag(null);
       }}
     >
+      {/* Invisible bbox-padded hit area: ensures clicks within ~5px of the
+          border still pick up this node. Pointer events go to the parent <g>
+          via SVG event bubbling. */}
+      <rect
+        className="hit-halo"
+        x={-hitHalo(node)}
+        y={-hitHalo(node)}
+        width={node.w + 2 * hitHalo(node)}
+        height={node.h + 2 * hitHalo(node)}
+        fill="transparent"
+        pointerEvents="all"
+      />
       {renderShape(node)}
       {renderLabel(node)}
+      {/* Hover ring: shown via CSS only when the group is hovered and not
+          selected — previews what a click is about to select. */}
+      <rect
+        className="hover-ring"
+        x={-3}
+        y={-3}
+        width={node.w + 6}
+        height={node.h + 6}
+        rx={3}
+        fill="none"
+        pointerEvents="none"
+      />
       {isSelected && (
         <rect
           className="selection-box"
@@ -189,14 +231,22 @@ export function NodeView({
   );
 }
 
+function hitHalo(node: RenderNode): number {
+  // Border halo is at least MIN_HIT_HALO; widens with the visible stroke so a
+  // chunky-bordered node stays generous on its outside.
+  return Math.max(MIN_HIT_HALO, Math.ceil(node.style.strokeWidth));
+}
+
 function renderLabel(node: RenderNode): JSX.Element {
   const { x, y, textAnchor, dominantBaseline } = node.labelPlacement;
-  const maxWidth = Math.max(LABEL_FONT_SIZE, node.w - LABEL_HORIZONTAL_PADDING);
-  const lines = wrapLabel(node.label, maxWidth, LABEL_FONT_SIZE);
+  const fontSize = node.style.fontSize ?? LABEL_FONT_SIZE;
+  const maxWidth = Math.max(fontSize, node.w - LABEL_HORIZONTAL_PADDING);
+  const lines = wrapLabel(node.label, maxWidth, fontSize);
   const textProps = {
     fill: node.style.fontColor,
     fontWeight: node.style.fontWeight,
     fontStyle: node.style.fontStyle,
+    fontSize,
   };
   if (lines.length === 1) {
     return (
@@ -210,7 +260,7 @@ function renderLabel(node: RenderNode): JSX.Element {
   // consistently re-center each tspan when the parent text uses
   // `central` and the children carry explicit `y`/`dy`, which left
   // multi-line blocks visibly offset from the requested anchor point.
-  const lineHeight = LABEL_FONT_SIZE * LABEL_LINE_HEIGHT_EM;
+  const lineHeight = fontSize * LABEL_LINE_HEIGHT_EM;
   let firstY = y;
   if (dominantBaseline === 'central') {
     firstY = y - ((lines.length - 1) / 2) * lineHeight;

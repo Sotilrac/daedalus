@@ -116,6 +116,7 @@ function nodeStyle(s: D2FlatNode): NodeStyle {
   if (typeof s.strokeDash === 'number' && s.strokeDash > 0) out.strokeDash = s.strokeDash;
   if (s.fontColor !== undefined) out.fontColor = s.fontColor;
   if (s.color !== undefined && out.fontColor === undefined) out.fontColor = s.color;
+  if (typeof s.fontSize === 'number' && s.fontSize > 0) out.fontSize = s.fontSize;
   if (s.bold) out.bold = true;
   if (s.italic) out.italic = true;
   if (s.shadow) out.shadow = true;

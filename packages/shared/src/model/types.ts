@@ -33,6 +33,7 @@ export interface NodeStyle {
   strokeWidth?: number;
   strokeDash?: number;
   fontColor?: string;
+  fontSize?: number;
   bold?: boolean;
   italic?: boolean;
   shadow?: boolean;

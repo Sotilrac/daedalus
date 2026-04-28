@@ -353,6 +353,60 @@ describe('updateSettings', () => {
   });
 });
 
+describe('alignCenters', () => {
+  it('aligns x centres to the first selected node', async () => {
+    const layout = baseLayout();
+    layout.nodes.a = nodeLayout(0, 0, 96, 64, { right: ['a->b#0'] });
+    layout.nodes.b = nodeLayout(256, 64, 96, 64, { left: ['a->b#0'] });
+    seed(baseModel(), layout);
+    useGraphStore.getState().setSelection(['a', 'b']);
+    await useGraphStore.getState().alignCenters('x');
+    const a = useGraphStore.getState().layout!.nodes.a!;
+    const b = useGraphStore.getState().layout!.nodes.b!;
+    expect(a.x).toBe(0); // reference unchanged
+    expect(b.x + b.w / 2).toBe(a.x + a.w / 2);
+  });
+
+  it('aligns y centres to the first selected node', async () => {
+    const layout = baseLayout();
+    layout.nodes.a = nodeLayout(0, 0, 96, 64, { right: ['a->b#0'] });
+    layout.nodes.b = nodeLayout(256, 96, 96, 64, { left: ['a->b#0'] });
+    seed(baseModel(), layout);
+    useGraphStore.getState().setSelection(['a', 'b']);
+    await useGraphStore.getState().alignCenters('y');
+    const a = useGraphStore.getState().layout!.nodes.a!;
+    const b = useGraphStore.getState().layout!.nodes.b!;
+    expect(a.y).toBe(0);
+    expect(b.y + b.h / 2).toBe(a.y + a.h / 2);
+  });
+
+  it('no-ops when fewer than 2 are selected', async () => {
+    useGraphStore.getState().setSelection(['a']);
+    const before = useGraphStore.getState().layout;
+    await useGraphStore.getState().alignCenters('x');
+    expect(useGraphStore.getState().layout).toBe(before);
+  });
+});
+
+describe('matchSize', () => {
+  it('resizes followers to match the first selected node, anchored at centre', async () => {
+    const layout = baseLayout();
+    layout.nodes.a = nodeLayout(0, 0, 128, 96, { right: ['a->b#0'] });
+    layout.nodes.b = nodeLayout(256, 0, 64, 32, { left: ['a->b#0'] });
+    seed(baseModel(), layout);
+    useGraphStore.getState().setSelection(['a', 'b']);
+    await useGraphStore.getState().matchSize();
+    const a = useGraphStore.getState().layout!.nodes.a!;
+    const b = useGraphStore.getState().layout!.nodes.b!;
+    expect(b.w).toBe(a.w);
+    expect(b.h).toBe(a.h);
+    // b's centre should remain near (256+32, 16) = (288, 16) → with new size
+    // 128x96, x = 288 - 64 = 224 (snapped), y = 16 - 48 = -32 (snapped).
+    expect(b.x + b.w / 2).toBe(288);
+    expect(b.y + b.h / 2).toBe(16);
+  });
+});
+
 describe('closeProject', () => {
   it('clears every diagram-related field', () => {
     useGraphStore.setState({ selection: ['a'], past: [baseLayout()] });

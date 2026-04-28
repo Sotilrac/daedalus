@@ -16,7 +16,10 @@ const INLINE_TOKENS = [
 // Editor chrome that has no place in a static export.
 const EDITOR_CHROME = [
   '.anchor',
+  '.anchor-hit',
   '.selection-box',
+  '.hit-halo',
+  '.hover-ring',
   '.export-outline',
   '.resize-handle',
   '.size-hint',
@@ -46,10 +49,14 @@ function inlineThemeTokens(source: SVGSVGElement, target: SVGSVGElement): void {
   const fontSans = computed.getPropertyValue('--font-sans').trim() || 'sans-serif';
   const fontMono = computed.getPropertyValue('--font-mono').trim() || 'monospace';
   const styleEl = target.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'style');
+  // Use `:where(...)` for the per-node text rule so it carries zero specificity
+  // — inline `font-size` attributes (e.g. D2's `style.font-size: 60`) on the
+  // <text> elements still win, while SVG/PNG renderers without our app.css
+  // get a sane fallback for unsized text.
   styleEl.textContent = [
     tokens ? `svg { ${tokens} }` : '',
     `text { font-family: ${fontSans}; font-size: 12px; }`,
-    `.node text { font-family: ${fontSans}; font-size: 12px; }`,
+    `:where(.node) text { font-family: ${fontSans}; }`,
     `.size-label, .version, .toolbar { font-family: ${fontMono}; }`,
   ]
     .filter(Boolean)

@@ -32,6 +32,10 @@ interface Candidate {
 }
 
 const SNAP_RADIUS = 28;
+// The visible anchor dot is small (4px) so it doesn't crowd the node, but a
+// 4px-radius pointer target is fiddly to grab. The pointer handlers live on
+// an invisible larger circle behind each visible dot; this is its radius.
+const HIT_RADIUS = 12;
 
 export function AnchorControls({ nodeId, width, height, shape }: Props): JSX.Element {
   const layout = useGraphStore((s) => s.layout);
@@ -71,65 +75,80 @@ export function AnchorControls({ nodeId, width, height, shape }: Props): JSX.Ele
           const cy = isActive && editing ? editing.cursorY : home.y;
 
           return (
-            <circle
-              key={`${side}-${index}-${edgeId}`}
-              className="anchor"
-              cx={cx}
-              cy={cy}
-              r={isActive ? 6 : 4}
-              fill={isActive ? 'var(--accent)' : 'var(--ink)'}
-              stroke={isActive ? 'var(--accent)' : 'var(--ink-muted)'}
-              strokeWidth={1}
-              onPointerDown={(e) => {
-                e.stopPropagation();
-                e.currentTarget.setPointerCapture(e.pointerId);
-                // Editing a connection is a different gesture from selecting
-                // boxes; drop the current node selection so the resize handle
-                // and selection-box chrome don't fight the anchor drag UI.
-                clearSelection();
-                setInteracting(true);
-                setEditing({
-                  edgeId,
-                  fromSide: side,
-                  fromIndex: index,
-                  pointerStartX: e.clientX,
-                  pointerStartY: e.clientY,
-                  anchorStartX: home.x,
-                  anchorStartY: home.y,
-                  cursorX: home.x,
-                  cursorY: home.y,
-                  moved: false,
-                });
-              }}
-              onPointerMove={(e) => {
-                if (!editing || editing.edgeId !== edgeId) return;
-                const dx = e.clientX - editing.pointerStartX;
-                const dy = e.clientY - editing.pointerStartY;
-                setEditing({
-                  ...editing,
-                  cursorX: editing.anchorStartX + dx,
-                  cursorY: editing.anchorStartY + dy,
-                  moved: editing.moved || Math.hypot(dx, dy) > 2,
-                });
-              }}
-              onPointerUp={(e) => {
-                e.currentTarget.releasePointerCapture(e.pointerId);
-                if (editing && editing.edgeId === edgeId && editing.moved) {
-                  if (
-                    nearest &&
-                    distance(nearest.x, nearest.y, editing.cursorX, editing.cursorY) <= SNAP_RADIUS
-                  ) {
-                    void moveEdgeAnchor(nodeId, edgeId, nearest.side, nearest.index);
+            <g key={`${side}-${index}-${edgeId}`}>
+              {/* Invisible hit target — larger than the visible anchor so the
+                  user can grab it without pixel-precise aim. Pointer handlers
+                  live here; the visible dot is decorative. */}
+              <circle
+                className="anchor-hit"
+                cx={cx}
+                cy={cy}
+                r={HIT_RADIUS}
+                fill="transparent"
+                pointerEvents="all"
+                style={{ cursor: 'pointer' }}
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                  // Editing a connection is a different gesture from selecting
+                  // boxes; drop the current node selection so the resize handle
+                  // and selection-box chrome don't fight the anchor drag UI.
+                  clearSelection();
+                  setInteracting(true);
+                  setEditing({
+                    edgeId,
+                    fromSide: side,
+                    fromIndex: index,
+                    pointerStartX: e.clientX,
+                    pointerStartY: e.clientY,
+                    anchorStartX: home.x,
+                    anchorStartY: home.y,
+                    cursorX: home.x,
+                    cursorY: home.y,
+                    moved: false,
+                  });
+                }}
+                onPointerMove={(e) => {
+                  if (!editing || editing.edgeId !== edgeId) return;
+                  const dx = e.clientX - editing.pointerStartX;
+                  const dy = e.clientY - editing.pointerStartY;
+                  setEditing({
+                    ...editing,
+                    cursorX: editing.anchorStartX + dx,
+                    cursorY: editing.anchorStartY + dy,
+                    moved: editing.moved || Math.hypot(dx, dy) > 2,
+                  });
+                }}
+                onPointerUp={(e) => {
+                  e.currentTarget.releasePointerCapture(e.pointerId);
+                  if (editing && editing.edgeId === edgeId && editing.moved) {
+                    if (
+                      nearest &&
+                      distance(nearest.x, nearest.y, editing.cursorX, editing.cursorY) <=
+                        SNAP_RADIUS
+                    ) {
+                      void moveEdgeAnchor(nodeId, edgeId, nearest.side, nearest.index);
+                    }
                   }
-                }
-                setInteracting(false);
-                setEditing(null);
-              }}
-              onPointerCancel={() => {
-                setInteracting(false);
-                setEditing(null);
-              }}
-            />
+                  setInteracting(false);
+                  setEditing(null);
+                }}
+                onPointerCancel={() => {
+                  setInteracting(false);
+                  setEditing(null);
+                }}
+              />
+              <circle
+                className="anchor"
+                cx={cx}
+                cy={cy}
+                r={isActive ? 6 : 4}
+                fill={isActive ? 'var(--accent)' : 'var(--ink)'}
+                stroke={isActive ? 'var(--accent)' : 'var(--ink-muted)'}
+                strokeWidth={1}
+                pointerEvents="none"
+              />
+            </g>
           );
         }),
       )}

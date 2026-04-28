@@ -556,7 +556,10 @@ button:disabled {
   user-select: none;
   pointer-events: none;
   font-family: var(--font-sans);
-  font-size: 12px;
+
+  /* Per-node font-size lives on the <text> element so D2's
+    `style.font-size: NN` overrides come through verbatim. Don't set a
+    CSS font-size here — it would override the inline attribute. */
 }
 
 .anchor {
@@ -574,6 +577,34 @@ button:disabled {
   stroke-width: 1;
   stroke-dasharray: 3 3;
   pointer-events: none;
+}
+
+/* Hit halo: invisible bbox-padded rect that catches clicks within ~5px of
+  the border (or further out for thick-stroked shapes). Cursor stays grab so
+  the user knows they're on a node. */
+.hit-halo {
+  cursor: inherit;
+}
+
+/* Hover ring: hidden by default; faint dashed outline appears when the user
+  hovers an unselected node, so they can see what a click is about to grab.
+  Hidden during a drag and when the node is already selected (the
+  selection-box already shows). */
+.hover-ring {
+  stroke: var(--accent);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+}
+
+.node:hover .hover-ring {
+  opacity: 0.55;
+}
+
+.node.dragging .hover-ring,
+.node:has(.selection-box) .hover-ring {
+  opacity: 0;
 }
 
 .settings-panel {
