@@ -108,14 +108,26 @@ function asArrowhead(v: string | undefined): Arrowhead | undefined {
   return (ARROWHEADS as Set<string>).has(v) ? (v as Arrowhead) : undefined;
 }
 
+// D2 emits its internal theme palette tokens (e.g. "B1", "N7", "AA2") on the
+// flat fill/stroke fields whenever the user hasn't set an explicit color.
+// These are placeholders that D2's own renderer resolves to hex per the
+// chosen theme; they reach us as literal strings and become invalid CSS,
+// which browsers render as black. Strip them so the daedalus palette's
+// fallbacks apply instead.
+const D2_THEME_TOKEN = /^[A-Z]{1,3}\d+$/;
+function isThemeToken(value: string | undefined): boolean {
+  return typeof value === 'string' && D2_THEME_TOKEN.test(value);
+}
+
 function nodeStyle(s: D2FlatNode): NodeStyle {
   const out: NodeStyle = {};
-  if (s.fill !== undefined) out.fill = s.fill;
-  if (s.stroke !== undefined) out.stroke = s.stroke;
+  if (s.fill !== undefined && !isThemeToken(s.fill)) out.fill = s.fill;
+  if (s.stroke !== undefined && !isThemeToken(s.stroke)) out.stroke = s.stroke;
   if (typeof s.strokeWidth === 'number') out.strokeWidth = s.strokeWidth;
   if (typeof s.strokeDash === 'number' && s.strokeDash > 0) out.strokeDash = s.strokeDash;
-  if (s.fontColor !== undefined) out.fontColor = s.fontColor;
-  if (s.color !== undefined && out.fontColor === undefined) out.fontColor = s.color;
+  if (s.fontColor !== undefined && !isThemeToken(s.fontColor)) out.fontColor = s.fontColor;
+  if (s.color !== undefined && !isThemeToken(s.color) && out.fontColor === undefined)
+    out.fontColor = s.color;
   if (typeof s.fontSize === 'number' && s.fontSize > 0) out.fontSize = s.fontSize;
   if (s.bold) out.bold = true;
   if (s.italic) out.italic = true;
@@ -126,14 +138,14 @@ function nodeStyle(s: D2FlatNode): NodeStyle {
 
 function edgeStyle(c: D2FlatConnection): EdgeStyle {
   const out: EdgeStyle = {};
-  if (c.stroke !== undefined) out.stroke = c.stroke;
+  if (c.stroke !== undefined && !isThemeToken(c.stroke)) out.stroke = c.stroke;
   if (typeof c.strokeWidth === 'number') out.strokeWidth = c.strokeWidth;
   if (typeof c.strokeDash === 'number' && c.strokeDash > 0) out.strokeDash = c.strokeDash;
   // Only pick up an explicit `fontColor`. D2's flat `color` field is filled
   // in with the engine's default (typically near-black) regardless of theme,
   // so reusing it would make connection labels unreadable on dark themes.
   // Falling through to the resolver lets the theme's ink apply instead.
-  if (c.fontColor !== undefined) out.fontColor = c.fontColor;
+  if (c.fontColor !== undefined && !isThemeToken(c.fontColor)) out.fontColor = c.fontColor;
   if (typeof c.opacity === 'number' && c.opacity !== 1) out.opacity = c.opacity;
   return out;
 }

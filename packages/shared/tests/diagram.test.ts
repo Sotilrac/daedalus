@@ -120,6 +120,31 @@ describe('diagramToModel', () => {
     expect(m.nodes.b?.style.fontSize).toBeUndefined();
   });
 
+  it('drops D2 theme palette tokens (B1, N7, AA2, ...) on nodes and edges', () => {
+    // D2 emits its theme tokens on the flat fill/stroke fields when the user
+    // hasn't set an explicit color. Pass-through would render them as invalid
+    // CSS (i.e. black). The adapter should treat them as unset so the theme
+    // palette's defaults fill in.
+    const diagram = asDiagram({
+      shapes: [
+        { id: 'a', fill: 'B4', stroke: 'B1', fontColor: 'N1' },
+        { id: 'b', fill: '#fff', stroke: '#000' },
+      ] as unknown as D2Diagram['shapes'],
+      connections: [
+        { src: 'a', dst: 'b', stroke: 'B1', fontColor: 'N2' },
+      ] as unknown as D2Diagram['connections'],
+    });
+    const m = diagramToModel(diagram);
+    expect(m.nodes.a?.style.fill).toBeUndefined();
+    expect(m.nodes.a?.style.stroke).toBeUndefined();
+    expect(m.nodes.a?.style.fontColor).toBeUndefined();
+    expect(m.nodes.b?.style.fill).toBe('#fff');
+    expect(m.nodes.b?.style.stroke).toBe('#000');
+    const e = Object.values(m.edges)[0];
+    expect(e?.style.stroke).toBeUndefined();
+    expect(e?.style.fontColor).toBeUndefined();
+  });
+
   it('counts repeated edges with monotonic indices', () => {
     const diagram = asDiagram({
       shapes: [{ id: 'a' }, { id: 'b' }] as unknown as D2Diagram['shapes'],
