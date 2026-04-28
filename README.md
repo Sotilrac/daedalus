@@ -4,6 +4,10 @@ D2-driven diagram editor with snap-to-grid layout and orthogonal edge automatic 
 
 The name comes from the Ancient Greek verb δαιδάλλω — to craft skillfully, to make artfully — by way of Δαίδαλος, the mythical artificer. In the same spirit: D2 keeps the structure correct, and you sculpt the composition.
 
+## Download
+
+Pre-built installers for macOS (universal), Windows (MSI / NSIS), and Linux (AppImage / deb) live on the [GitHub releases page](https://github.com/Sotilrac/daedalus/releases). The app checks for updates on launch and shows a pill next to the version label in the home card when a newer release is available; clicking it downloads, signature-verifies, and installs the update, then relaunches.
+
 ## Features
 
 - **Write D2, drag the layout.** Your `.d2` files stay the source of truth; Daedalus never rewrites them. You move nodes around for clarity, and the positions, sizes, and connection ordering save alongside in `.daedalus.json`.
@@ -99,6 +103,31 @@ make dev          # launches Vite + Tauri
 `make bump` rewrites the version in the root `package.json`, `packages/desktop/src-tauri/Cargo.toml`, `tauri.conf.json`, and `Cargo.lock` (the daedalus crate entry) in lockstep, then re-runs prettier on the JSON files.
 
 The `web` package's `dev` and `build` scripts run `scripts/sync-wasm.mjs` first; that copies `libavoid.wasm` from `node_modules` into `packages/web/public/` so the bundler serves it at the document root in both dev and production. The shared `routing` module reads the URL via `setLibavoidWasmUrl` at app boot.
+
+### Releases & auto-update
+
+Pushing a tag matching `v*` or `desktop-v*` triggers `.github/workflows/release-desktop.yml`, which builds for all three desktop OSes and publishes the installers plus a signed `latest.json` to the GitHub release. The in-app updater (`tauri-plugin-updater`) reads `latest.json` from the `releases/latest/download/` URL and verifies every download against the public key embedded in `tauri.conf.json`.
+
+One-time signing-key setup (do this once per project, not per release):
+
+```sh
+# Generate the keypair. --write-keys writes the private key to disk; the
+# prompt sets a password that the CI also needs. `pnpm exec` runs the CLI
+# directly so pnpm's own arg parsing doesn't strip flags.
+mkdir -p ~/.tauri
+pnpm -F @daedalus/desktop exec tauri signer generate --write-keys ~/.tauri/daedalus.key
+
+# The command prints the public key; paste it into
+# packages/desktop/src-tauri/tauri.conf.json under plugins.updater.pubkey
+# (replacing REPLACE_WITH_TAURI_SIGNER_GENERATE_PUBLIC_KEY).
+
+# Add two GitHub Actions secrets to the repo
+# (Settings → Secrets and variables → Actions):
+#   TAURI_SIGNING_PRIVATE_KEY            — contents of ~/.tauri/daedalus.key
+#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD   — the password you set above
+```
+
+Without these secrets the release workflow still builds installers, but `tauri-action` skips `latest.json` and the in-app updater will report "no update found" indefinitely. The private key never leaves your machine + GitHub's secret store; rotating it later means cutting a new keypair, updating the public half in `tauri.conf.json`, and shipping one bridge release on the old key so existing installs can update past it.
 
 ## Repo layout
 

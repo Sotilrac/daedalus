@@ -1,5 +1,6 @@
 import { DISPLAY_NAME, VERSION_LABEL } from '../branding.js';
 import { onExternalLink } from '../util/openExternal.js';
+import { UpdateIndicator } from '../util/UpdateIndicator.js';
 
 const RELEASES_URL = 'https://github.com/Sotilrac/daedalus/releases';
 const SOURCE_URL = 'https://gitlab.com/sotilrac/daedalus';
@@ -47,6 +48,7 @@ export function WelcomeCard(): JSX.Element {
         >
           {VERSION_LABEL}
         </a>
+        <UpdateIndicator />
         <a
           href={SOURCE_URL}
           target="_blank"

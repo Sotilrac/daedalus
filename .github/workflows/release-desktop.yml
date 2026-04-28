@@ -75,6 +75,13 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Updater signing keys. Generated once with `pnpm tauri signer
+          # generate -- -w ~/.tauri/daedalus.key`; the public half lives in
+          # `tauri.conf.json` under `plugins.updater.pubkey`. The action
+          # produces signed updater archives + `latest.json` and uploads
+          # them to the GitHub release alongside the platform installers.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           # Optional code-signing secrets, hooked up when you're ready:
           # APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           # APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}

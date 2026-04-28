@@ -57,6 +57,8 @@ import { DISPLAY_NAME, VERSION_LABEL } from './branding.js';
 import { SAMPLE_D2 } from './sample.js';
 import { onExternalLink } from './util/openExternal.js';
 import { ensureExtension, exportDefaultPath, rememberExportDir } from './util/paths.js';
+import { UpdateIndicator } from './util/UpdateIndicator.js';
+import { useUpdaterStore } from './util/updater.js';
 
 const RELEASES_URL = 'https://github.com/Sotilrac/daedalus/releases';
 
@@ -183,6 +185,14 @@ export function App(): JSX.Element {
   useEffect(() => {
     if (!source && welcomeOpen) setWelcomeOpen(false);
   }, [source, welcomeOpen]);
+
+  // Kick off a single update check on mount. The store guards against
+  // overlapping checks, so re-renders here are harmless. We do not block UI
+  // on the result; the indicator appears asynchronously when one's found.
+  const checkForUpdate = useUpdaterStore((s) => s.checkForUpdate);
+  useEffect(() => {
+    void checkForUpdate();
+  }, [checkForUpdate]);
 
   // Whenever a project loads (layout transitions from null → some), force
   // the sidecar's theme to match the user's current preference. The user
@@ -671,6 +681,7 @@ export function App(): JSX.Element {
           >
             {VERSION_LABEL}
           </a>
+          <UpdateIndicator />
         </div>
       )}
       {rootPath && (

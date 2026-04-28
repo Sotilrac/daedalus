@@ -213,6 +213,42 @@ button:disabled {
   outline: none;
 }
 
+/* Update-available pill: pops in next to the version when the updater
+ * reports a newer release. Uses the accent colour so it draws the eye
+ * without competing with the project chrome. */
+.update-pill {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--paper);
+  background: var(--accent);
+  padding: 2px 8px;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    filter 0.12s ease,
+    transform 0.12s ease;
+}
+
+.update-pill:hover,
+.update-pill:focus-visible {
+  filter: brightness(1.15);
+  outline: none;
+}
+
+.update-pill-progress {
+  cursor: default;
+  background: var(--ink-muted);
+}
+
+.update-pill-error {
+  background: var(--negative, #c0382b);
+}
+
 .path-floating {
   position: absolute;
   bottom: 18px;

@@ -20,6 +20,8 @@
     "fs:scope-home",
     "fs:scope-document",
     "fs:scope-desktop",
-    "fs:scope-download"
+    "fs:scope-download",
+    "updater:default",
+    "process:allow-restart"
   ]
 }
