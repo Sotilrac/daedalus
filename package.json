@@ -1,6 +1,6 @@
 {
   "name": "daedalus",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": true,
   "type": "module",
   "description": "D2-driven diagram editor with snap-to-grid layout and orthogonal edge routing.",

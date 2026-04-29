@@ -1,6 +1,6 @@
 [package]
 name = "daedalus"
-version = "1.2.0"
+version = "1.2.1"
 description = "D2-driven diagram editor"
 authors = ["Carlos Asmat <casmat@dephy.com>"]
 edition = "2021"
