@@ -300,15 +300,15 @@
             ],
             "left": [
               "pipeline.blobstore->newinternet.fridge#0",
-              "pipeline.blobstore->newinternet.phone#0"
+              "pipeline.blobstore->newinternet.server#0"
             ]
           }
         },
         "newinternet": {
-          "x": 752,
-          "y": -1456,
-          "w": 544,
-          "h": 416,
+          "x": 768,
+          "y": -1408,
+          "w": 512,
+          "h": 384,
           "connections": {
             "top": [
               "piedpiper.founders.richard->newinternet#0"
@@ -320,23 +320,23 @@
             "left": []
           }
         },
-        "newinternet.phone": {
+        "newinternet.server": {
           "x": 800,
-          "y": -1376,
+          "y": -1344,
           "w": 160,
           "h": 128,
           "connections": {
             "top": [],
-            "right": [],
-            "bottom": [
-              "pipeline.blobstore->newinternet.phone#0"
+            "right": [
+              "pipeline.blobstore->newinternet.server#0"
             ],
+            "bottom": [],
             "left": []
           }
         },
         "newinternet.fridge": {
           "x": 1088,
-          "y": -1376,
+          "y": -1360,
           "w": 160,
           "h": 128,
           "connections": {
@@ -350,7 +350,7 @@
         },
         "newinternet.condorcam": {
           "x": 944,
-          "y": -1200,
+          "y": -1184,
           "w": 160,
           "h": 128,
           "connections": {
@@ -617,7 +617,7 @@
         "piedpiper.founders.erlich->piedpiper.logo#0": {
           "fromSide": "bottom",
           "toSide": "right",
-          "labelT": 0.8823529411764706
+          "labelT": 0.19117647058823528
         },
         "piedpiper.eng.gilfoyle->piedpiper.middleout#0": {
           "fromSide": "bottom",
@@ -677,11 +677,6 @@
           "toSide": "top",
           "labelT": 0.12316176470588243
         },
-        "pipeline.blobstore->newinternet.phone#0": {
-          "fromSide": "left",
-          "toSide": "bottom",
-          "labelT": 0.36122881355932196
-        },
         "pipeline.blobstore->newinternet.fridge#0": {
           "fromSide": "left",
           "toSide": "right",
@@ -690,7 +685,7 @@
         "pipeline.blobstore->newinternet.condorcam#0": {
           "fromSide": "bottom",
           "toSide": "right",
-          "labelT": 0.6201508620689655
+          "labelT": 0.7125
         },
         "hooli.gavin->piedpiper#0": {
           "fromSide": "left",
@@ -769,6 +764,11 @@
           "fromSide": "left",
           "toSide": "top",
           "labelT": 0.7418981481481481
+        },
+        "pipeline.blobstore->newinternet.server#0": {
+          "fromSide": "left",
+          "toSide": "right",
+          "labelT": 0.395631067961165
         }
       },
       "unplaced": []
