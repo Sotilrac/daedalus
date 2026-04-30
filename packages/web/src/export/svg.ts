@@ -67,15 +67,6 @@ function stripGrid(svg: SVGSVGElement): void {
   for (const el of svg.querySelectorAll('.grid-bg')) el.remove();
 }
 
-// Edge labels in the editor sit on a theme-coloured pill so they read against
-// the paper backdrop. Exports always have a white background, so paint the
-// pills white to match.
-function whitenLabelBackgrounds(svg: SVGSVGElement): void {
-  for (const el of svg.querySelectorAll<SVGRectElement>('.label-bg')) {
-    el.setAttribute('fill', '#ffffff');
-  }
-}
-
 function applyCrop(svg: SVGSVGElement, opts: ExportOptions): void {
   const { bbox, margin } = opts;
   const x = bbox.x - margin;
@@ -107,9 +98,8 @@ export function serializeSvg(svg: SVGSVGElement, opts: ExportOptions): string {
   if (!opts.showGrid) stripGrid(clone);
   applyCrop(clone, opts);
   // No canvas background: SVG and PNG both export transparent so the diagram
-  // can drop into any document or theme. Label pills still get whitened so
-  // text stays legible if the consumer puts it on a coloured backdrop.
-  whitenLabelBackgrounds(clone);
+  // can drop into any document or theme. Edge labels punch a hole in the
+  // line via an SVG mask, so there's no pill backdrop to whiten anymore.
   inlineThemeTokens(svg, clone);
   stripEditorChrome(clone);
   return new XMLSerializer().serializeToString(clone);

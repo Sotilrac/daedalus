@@ -31,22 +31,55 @@ export function EdgeView({ edge }: { edge: RenderEdge }): JSX.Element {
   const trimmed = trimRoute(edge.route, srcArrow, dstArrow);
   const path = polylineToPath(trimmed);
 
-  let labelEls: JSX.Element | null = null;
+  let labelRect: { x: number; y: number; w: number; h: number } | null = null;
   if (edge.label) {
     const w = edge.label.length * LABEL_CHAR_W + LABEL_PAD_X * 2;
     const h = LABEL_FONT_SIZE + LABEL_PAD_Y * 2;
-    labelEls = (
-      <g>
-        <rect
-          className="label-bg"
-          x={edge.midpoint.x - w / 2}
-          y={edge.midpoint.y - h / 2}
-          width={w}
-          height={h}
-          rx={2}
-          fill={edge.labelBackground}
-          stroke="none"
-        />
+    labelRect = { x: edge.midpoint.x - w / 2, y: edge.midpoint.y - h / 2, w, h };
+  }
+
+  // Edge ids contain `->` and `#`, neither valid in `url(#…)` references.
+  // Squash them to underscores so the mask URL resolves.
+  const maskId = labelRect ? `edge-label-mask-${edge.id.replace(/[^a-zA-Z0-9_-]/g, '_')}` : null;
+
+  return (
+    <g className="edge">
+      {labelRect && maskId && (
+        // Punch the label-shaped hole out of the path so the line appears to
+        // pass *behind* the text instead of through a pill-shaped backdrop.
+        // White = visible, black = hidden. The mask's own `x/y/width/height`
+        // default to roughly the masked element's bbox; for long edges that
+        // crops the path so anything outside the bbox-aligned region gets
+        // masked out (the bug that "killed" some edges). Setting an explicit
+        // region in user space ensures the mask covers the whole path.
+        <mask id={maskId} maskUnits="userSpaceOnUse" x={-1e6} y={-1e6} width={2e6} height={2e6}>
+          <rect x={-1e6} y={-1e6} width={2e6} height={2e6} fill="white" />
+          <rect
+            x={labelRect.x}
+            y={labelRect.y}
+            width={labelRect.w}
+            height={labelRect.h}
+            rx={2}
+            fill="black"
+          />
+        </mask>
+      )}
+      <path
+        d={path}
+        fill="none"
+        stroke={stroke}
+        strokeWidth={strokeWidth}
+        opacity={opacity}
+        {...(edge.style.strokeDasharray ? { strokeDasharray: edge.style.strokeDasharray } : {})}
+        {...(maskId ? { mask: `url(#${maskId})` } : {})}
+      />
+      {srcArrow &&
+        srcArrow !== 'none' &&
+        renderArrow(edge.route, 'src', srcArrow, stroke, strokeWidth, opacity)}
+      {dstArrow &&
+        dstArrow !== 'none' &&
+        renderArrow(edge.route, 'dst', dstArrow, stroke, strokeWidth, opacity)}
+      {edge.label && (
         <text
           x={edge.midpoint.x}
           y={edge.midpoint.y}
@@ -57,27 +90,7 @@ export function EdgeView({ edge }: { edge: RenderEdge }): JSX.Element {
         >
           {edge.label}
         </text>
-      </g>
-    );
-  }
-
-  return (
-    <g className="edge">
-      <path
-        d={path}
-        fill="none"
-        stroke={stroke}
-        strokeWidth={strokeWidth}
-        opacity={opacity}
-        {...(edge.style.strokeDasharray ? { strokeDasharray: edge.style.strokeDasharray } : {})}
-      />
-      {srcArrow &&
-        srcArrow !== 'none' &&
-        renderArrow(edge.route, 'src', srcArrow, stroke, strokeWidth, opacity)}
-      {dstArrow &&
-        dstArrow !== 'none' &&
-        renderArrow(edge.route, 'dst', dstArrow, stroke, strokeWidth, opacity)}
-      {labelEls}
+      )}
     </g>
   );
 }

@@ -63,7 +63,6 @@ export interface RenderEdge {
   route: Point[];
   label?: string;
   midpoint: Point;
-  labelBackground: string; // resolved theme hex for label pill
   style: ReturnType<typeof resolveEdgeStyle>;
   srcArrow?: Arrowhead;
   dstArrow?: Arrowhead;
@@ -111,7 +110,6 @@ export function buildRenderPlan({ model, layout, routes, theme }: BuildPlanInput
       path,
       route: [...route],
       midpoint,
-      labelBackground: palette.paper,
       style,
     };
     if (e.label) out.label = e.label;
