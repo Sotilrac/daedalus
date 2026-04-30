@@ -3,6 +3,8 @@ import { useGraphStore } from '../store/graphStore.js';
 export interface SettingsPanelProps {
   autoReload: boolean;
   onAutoReloadChange: (v: boolean) => void;
+  autosave: boolean;
+  onAutosaveChange: (v: boolean) => void;
   allowContextMenu: boolean;
   onAllowContextMenuChange: (v: boolean) => void;
   showGrid: boolean;
@@ -16,6 +18,8 @@ export interface SettingsPanelProps {
 export function SettingsPanel({
   autoReload,
   onAutoReloadChange,
+  autosave,
+  onAutosaveChange,
   allowContextMenu,
   onAllowContextMenuChange,
   showGrid,
@@ -78,6 +82,17 @@ export function SettingsPanel({
             onChange={(e) => onAutoReloadChange(e.target.checked)}
           />
           <span>Auto-reload on D2 change</span>
+        </label>
+        <label
+          className="row checkbox"
+          title="Write the .daedalus.json sidecar automatically as you edit."
+        >
+          <input
+            type="checkbox"
+            checked={autosave}
+            onChange={(e) => onAutosaveChange(e.target.checked)}
+          />
+          <span>Auto-save layout</span>
         </label>
       </section>
       {projectSettings && (

@@ -23,6 +23,7 @@ import {
   RedoIcon,
   ReloadIcon,
   RelayoutIcon,
+  SaveIcon,
   SettingsIcon,
   UndoIcon,
 } from './editor/icons.js';
@@ -46,6 +47,7 @@ import { writeImage as clipboardWriteImage } from '@tauri-apps/plugin-clipboard-
 import {
   ALLOW_CTX_KEY,
   AUTO_RELOAD_KEY,
+  AUTOSAVE_KEY,
   forgetFolder,
   recallFolder,
   rememberFolder,
@@ -79,6 +81,7 @@ const KB = {
   newProject: `${MOD}+N`,
   openFolder: `${MOD}+O`,
   reload: `${MOD}+R`,
+  save: `${MOD}+S`,
   undo: `${MOD}+Z`,
   redo: `${MOD}+Shift+Z`,
   center: `${MOD}+0`,
@@ -139,6 +142,7 @@ export function App(): JSX.Element {
   // by clicking outside the card or pressing Escape.
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [autoReload, setAutoReload] = useStoredFlag(AUTO_RELOAD_KEY, true);
+  const [autosave, setAutosave] = useStoredFlag(AUTOSAVE_KEY, true);
   const [allowContextMenu, setAllowContextMenu] = useStoredFlag(ALLOW_CTX_KEY, false);
   const [showGrid, setShowGrid] = useStoredFlag(SHOW_GRID_KEY, true);
   const [showAnchors, setShowAnchors] = useStoredFlag(SHOW_ANCHORS_KEY, true);
@@ -333,32 +337,44 @@ export function App(): JSX.Element {
 
   const interacting = useGraphStore((s) => s.interacting);
 
+  // Reads the latest layout off the store at call time so it can be invoked
+  // from anywhere (the auto-save effect, the toolbar button, the keyboard
+  // shortcut) without juggling stale closures.
+  const saveLayoutNow = useCallback(async () => {
+    if (!source) return;
+    const live = useGraphStore.getState().layout;
+    if (!live) return;
+    try {
+      const existing = await source.readSidecar();
+      const sidecar = existing ? parseSidecar(existing) : emptySidecar();
+      const next = setEntry(sidecar, entryPath, live);
+      await source.writeSidecar(serializeSidecar(next));
+      lastPersistedRef.current = live;
+    } catch (err) {
+      setErrors(normalizeD2Error(err));
+    }
+  }, [source, entryPath, setErrors]);
+
   // Debounced sidecar persist whenever the user changes layout in the editor.
   // Skips writes mid-gesture (drag, resize, edge-anchor move) so we don't
   // pound the disk on every pointer-move; the effect re-runs when
   // `interacting` flips back to false and writes the final state.
   useEffect(() => {
     if (!source || !layout) return undefined;
+    // Auto-save is on by default but the user can disable it from settings.
+    // When off, the in-memory layout still updates; the user just controls
+    // when the sidecar file gets written.
+    if (!autosave) return undefined;
     if (interacting) return undefined;
     // Don't persist the engine's auto layout — that's a transient comparison
     // view; the user's edits live in `manualStash` and will reappear on toggle.
     if (showingAuto) return undefined;
     if (lastPersistedRef.current === layout) return undefined;
     const id = setTimeout(() => {
-      void (async () => {
-        try {
-          const existing = await source.readSidecar();
-          const sidecar = existing ? parseSidecar(existing) : emptySidecar();
-          const next = setEntry(sidecar, entryPath, layout);
-          await source.writeSidecar(serializeSidecar(next));
-          lastPersistedRef.current = layout;
-        } catch (err) {
-          setErrors(normalizeD2Error(err));
-        }
-      })();
+      void saveLayoutNow();
     }, 200);
     return () => clearTimeout(id);
-  }, [layout, interacting, showingAuto, source, entryPath, setErrors]);
+  }, [layout, interacting, showingAuto, autosave, source, saveLayoutNow]);
 
   const onPickFolder = useCallback(async () => {
     const folder = await pickFolderViaTauri();
@@ -433,6 +449,7 @@ export function App(): JSX.Element {
     onCreateProject: (): void => undefined,
     onPickFolder: (): void => undefined,
     reload: (): void => undefined,
+    onSave: (): void => undefined,
     onCenter: (): void => undefined,
     onToggleEngine: (): void => undefined,
     onRelayout: (): void => undefined,
@@ -444,6 +461,7 @@ export function App(): JSX.Element {
     onExportSvg: (): void => undefined,
     onExportPng: (): void => undefined,
     canUseReload: false,
+    canUseSave: false,
     canUseEngine: false,
     canUseRelayout: false,
     canAlign: false,
@@ -485,6 +503,13 @@ export function App(): JSX.Element {
             if (!a.canUseReload) return;
             e.preventDefault();
             a.reload();
+            return;
+          case 's':
+            // Manual save is only wired when auto-save is off; otherwise the
+            // sidecar is already up-to-date and Cmd/Ctrl+S would be a no-op.
+            if (!a.canUseSave) return;
+            e.preventDefault();
+            a.onSave();
             return;
           case '0':
             e.preventDefault();
@@ -549,8 +574,12 @@ export function App(): JSX.Element {
           return;
       }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    // Capture phase: macOS WebKit and the various platform webviews bind
+    // some Cmd-combos (notably Cmd+S → "Save Webpage") to default behaviour
+    // that fires before page-level listeners. Listening in the capture
+    // phase lets us preventDefault before any of that runs.
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, []);
 
   const onExportSvg = useCallback(async () => {
@@ -672,6 +701,9 @@ export function App(): JSX.Element {
     reload: () => {
       void reload({ recenter: false });
     },
+    onSave: () => {
+      void saveLayoutNow();
+    },
     onCenter,
     onToggleEngine,
     onRelayout,
@@ -700,6 +732,7 @@ export function App(): JSX.Element {
       setPngDialogOpen((o) => !o);
     },
     canUseReload: !!source && !autoReload,
+    canUseSave: !!source && !!layout && !autosave,
     canUseEngine: !!autoLayout && !!layout,
     canUseRelayout: !!source,
     canAlign,
@@ -746,6 +779,17 @@ export function App(): JSX.Element {
             aria-label="Reload D2"
           >
             <ReloadIcon />
+          </button>
+        )}
+        {!autosave && (
+          <button
+            className="icon-btn"
+            onClick={() => void saveLayoutNow()}
+            disabled={!source || !layout}
+            title={`Save layout (${KB.save})`}
+            aria-label="Save layout"
+          >
+            <SaveIcon />
           </button>
         )}
         <span className="toolbar-divider" aria-hidden />
@@ -895,6 +939,8 @@ export function App(): JSX.Element {
             <SettingsPanel
               autoReload={autoReload}
               onAutoReloadChange={setAutoReload}
+              autosave={autosave}
+              onAutosaveChange={setAutosave}
               allowContextMenu={allowContextMenu}
               onAllowContextMenuChange={setAllowContextMenu}
               showGrid={showGrid}
@@ -944,7 +990,6 @@ export function App(): JSX.Element {
           <button
             type="button"
             className="display-name"
-            title="About Daedalus"
             aria-label="About Daedalus"
             aria-pressed={welcomeOpen}
             onClick={() => setWelcomeOpen((o) => !o)}

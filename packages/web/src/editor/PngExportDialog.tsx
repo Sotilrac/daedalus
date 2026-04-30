@@ -56,7 +56,6 @@ export function PngExportDialog({
           type="number"
           min={1}
           value={width}
-           
           autoFocus
           onChange={(e) => updateFromWidth(e.target.value)}
         />

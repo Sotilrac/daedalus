@@ -56,6 +56,7 @@ export function forgetFolder(): void {
 
 export const LAST_FOLDER_KEY = 'daedalus.lastFolder';
 export const AUTO_RELOAD_KEY = 'daedalus.autoReload';
+export const AUTOSAVE_KEY = 'daedalus.autosave';
 export const ALLOW_CTX_KEY = 'daedalus.allowContextMenu';
 export const SHOW_GRID_KEY = 'daedalus.showGrid';
 export const SHOW_ANCHORS_KEY = 'daedalus.showAnchors';
