@@ -9,7 +9,7 @@ import type {
 } from '../model/types.js';
 import { SIDES, emptyConnections } from '../model/types.js';
 import { parentId } from '../model/ids.js';
-import { snap, snapUpPow2 } from './snap.js';
+import { snap, snapUp, snapUpPow2 } from './snap.js';
 import { diffModels, type ModelDiff } from './diff.js';
 
 export interface ReconcileResult {
@@ -143,10 +143,13 @@ function placeMissingNodes(layout: Layout, model: Model): Layout {
       const nodeBottom = nodes[id].y + h;
       if (nodeBottom > parentBottom) parentBottom = nodeBottom;
     }
-    // Grow parent height if needed to enclose the new bottom.
+    // Grow parent height if needed to enclose the new bottom. Use plain
+    // grid snap (not pow2) — the parent is already an ELK-positioned
+    // shape and inflating it to the next power of two would push it
+    // into its siblings' space.
     const requiredH = parentBottom - parent.y + innerPad;
     if (requiredH > parent.h) {
-      nodes[par] = { ...parent, h: snapUpPow2(requiredH, grid.size) };
+      nodes[par] = { ...parent, h: snapUp(requiredH, grid.size) };
     }
   }
 

@@ -8,7 +8,7 @@ import type {
   Side,
 } from '../model/types.js';
 import { defaultSettings, emptyConnections, SIDES } from '../model/types.js';
-import { snap, snapUpPow2, clampToGrid } from './snap.js';
+import { snap, snapUp, clampToGrid } from './snap.js';
 import { classifySide, sideSortKey, type BoundingBox } from './sides.js';
 import type { D2Diagram } from '../d2/types.js';
 
@@ -68,8 +68,14 @@ export function snapAndAssignSides(raw: RawLayout, opts: SnapLayoutOptions): Sna
 
   const nodes: Record<NodeId, NodeLayout> = {};
   for (const s of raw.shapes) {
-    const w = snapUpPow2(s.w, grid.size);
-    const h = snapUpPow2(s.h, grid.size);
+    // ELK already laid out the diagram with these sizes; we only round up
+    // to the next grid line so manual drags snap cleanly. Inflating to
+    // the next power of two here would shove neighbouring nodes into
+    // overlap because we'd be growing boxes ELK already placed against
+    // each other. Pow2 sizing is only applied to *new* nodes that don't
+    // come with an ELK-computed position (see reconcile.placeMissingNodes).
+    const w = snapUp(Math.max(s.w, grid.size), grid.size);
+    const h = snapUp(Math.max(s.h, grid.size), grid.size);
     const sx = snap(s.x, grid.size);
     const sy = snap(s.y, grid.size);
     const { x, y } = clampToGrid(sx, sy, w, h, grid);
@@ -133,8 +139,8 @@ export function fitGridToShapes(raw: RawLayout, grid: GridConfig): GridConfig {
   let maxRight = 0;
   let maxBottom = 0;
   for (const s of raw.shapes) {
-    const w = snapUpPow2(s.w, grid.size);
-    const h = snapUpPow2(s.h, grid.size);
+    const w = snapUp(Math.max(s.w, grid.size), grid.size);
+    const h = snapUp(Math.max(s.h, grid.size), grid.size);
     const sx = snap(s.x, grid.size);
     const sy = snap(s.y, grid.size);
     maxRight = Math.max(maxRight, sx + w + margin);

@@ -29,9 +29,10 @@ describe('snapAndAssignSides', () => {
     });
 
     expect(nodes.a?.x).toBe(0);
-    // Initial node sizes round up to the next power of two so the resize step
-    // (grid * 2 = 32) lands cleanly on subsequent grow/shrink ticks.
-    expect(nodes.a?.w).toBe(128);
+    // ELK-laid-out nodes round up only to the next grid line so we don't
+    // inflate boxes ELK already placed against each other (100px → 112).
+    // Power-of-two snapping is reserved for new nodes added in reconcile.
+    expect(nodes.a?.w).toBe(112);
     expect(nodes.b?.x).toBe(304);
     expect(edgeSides['a->b#0']).toEqual({ fromSide: 'right', toSide: 'left' });
     expect(nodes.a?.connections.right).toEqual(['a->b#0']);
