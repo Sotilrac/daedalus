@@ -66,6 +66,48 @@ describe('resolveNodeStyle', () => {
     expect(resolveNodeStyle(slatePalette, {}).fontColor).toBe(slatePalette.ink);
     expect(resolveNodeStyle(paperPalette, {}).fontColor).toBe(paperPalette.ink);
   });
+
+  it('accepts 3-digit hex fills for luminance-based ink', () => {
+    // #fff is light → dark ink; #000 is dark → light ink.
+    expect(resolveNodeStyle(slatePalette, { fill: '#fff' }).fontColor).toBe(
+      resolveNodeStyle(paperPalette, { fill: '#fff' }).fontColor,
+    );
+    expect(resolveNodeStyle(slatePalette, { fill: '#fff' }).fontColor).not.toBe(slatePalette.ink);
+    expect(resolveNodeStyle(slatePalette, { fill: '#000' }).fontColor).not.toBe(paperPalette.ink);
+  });
+
+  it('falls back to palette ink for non-hex fills (named colors, rgb(), etc.)', () => {
+    // We only contrast-pick when the fill is a hex literal we can parse.
+    // Anything else (e.g. an rgb() or a named color) keeps the prior
+    // palette-ink behavior so we don't accidentally choose the wrong colour.
+    expect(resolveNodeStyle(slatePalette, { fill: 'rgb(0,0,0)' }).fontColor).toBe(slatePalette.ink);
+    expect(resolveNodeStyle(slatePalette, { fill: 'cornflowerblue' }).fontColor).toBe(
+      slatePalette.ink,
+    );
+    expect(resolveNodeStyle(slatePalette, { fill: '#zzz' }).fontColor).toBe(slatePalette.ink);
+    // `none` also fails the hex check.
+    expect(resolveNodeStyle(slatePalette, { fill: 'none' }).fontColor).toBe(slatePalette.ink);
+  });
+});
+
+describe('resolveEdgeStyle with custom fields', () => {
+  it('preserves an explicit edge fontColor', () => {
+    expect(resolveEdgeStyle(slatePalette, { fontColor: '#ff00aa' }).fontColor).toBe('#ff00aa');
+    expect(resolveEdgeStyle(paperPalette, { fontColor: '#ff00aa' }).fontColor).toBe('#ff00aa');
+  });
+
+  it('preserves an explicit edge stroke', () => {
+    expect(resolveEdgeStyle(slatePalette, { stroke: '#123456' }).stroke).toBe('#123456');
+  });
+
+  it('uses the supplied opacity when present', () => {
+    expect(resolveEdgeStyle(slatePalette, { opacity: 0.5 }).opacity).toBe(0.5);
+  });
+
+  it('does not emit dasharray for missing or zero strokeDash', () => {
+    expect(resolveEdgeStyle(slatePalette, {}).strokeDasharray).toBeUndefined();
+    expect(resolveEdgeStyle(slatePalette, { strokeDash: 0 }).strokeDasharray).toBeUndefined();
+  });
 });
 
 describe('resolveEdgeStyle', () => {

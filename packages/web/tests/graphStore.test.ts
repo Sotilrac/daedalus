@@ -1,7 +1,17 @@
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setRouterFactory, manhattanRoute, type EdgeRoutes } from '@daedalus/shared';
 import type { Layout, Model, NodeId, EdgeId, Side } from '@daedalus/shared';
 import { useGraphStore } from '../src/store/graphStore.js';
+import type * as D2Module from '@daedalus/shared/d2';
+import { compileD2 } from '@daedalus/shared/d2';
+
+// `compileD2` would otherwise pull the @terrastruct/d2 wasm module which we
+// don't want to load under jsdom. The preserveHistory tests below replace
+// the implementation per-test via `mockResolvedValue`.
+vi.mock('@daedalus/shared/d2', async (importOriginal) => {
+  const orig = await importOriginal<typeof D2Module>();
+  return { ...orig, compileD2: vi.fn() };
+});
 
 // Stub libavoid so the store's awaits resolve synchronously and we don't
 // require the real WASM in tests. Each call routes a single elbow per edge
@@ -435,5 +445,173 @@ describe('toggleAutoLayout', () => {
     await useGraphStore.getState().toggleAutoLayout();
     expect(useGraphStore.getState().showingAuto).toBe(false);
     expect(useGraphStore.getState().layout).toBe(manual);
+  });
+});
+
+describe('fitContainer', () => {
+  function withGroup(): { model: Model; layout: Layout } {
+    const model: Model = {
+      nodes: {
+        group: { label: 'group', shape: 'rectangle', style: {}, rawWidth: 600, rawHeight: 400 },
+        'group.a': { label: 'a', shape: 'rectangle', style: {}, rawWidth: 96, rawHeight: 64 },
+        'group.b': { label: 'b', shape: 'rectangle', style: {}, rawWidth: 96, rawHeight: 64 },
+      },
+      edges: {},
+    };
+    const layout: Layout = {
+      ...baseLayout(),
+      nodes: {
+        group: nodeLayout(0, 0, 600, 400),
+        'group.a': nodeLayout(48, 48, 96, 64),
+        'group.b': nodeLayout(192, 144, 96, 64),
+      },
+      edges: {},
+    };
+    return { model, layout };
+  }
+
+  it('shrinks the container to enclose its descendants with one grid of margin', async () => {
+    const { model, layout } = withGroup();
+    seed(model, layout);
+    await useGraphStore.getState().fitContainer('group');
+    const g = useGraphStore.getState().layout?.nodes.group;
+    expect(g).toBeDefined();
+    // Children span (48, 48) → (288, 208). Adding margin (16) on each side
+    // gives (32, 32) → (304, 224); snapped to grid*2=32 the size becomes
+    // 288 wide × 224 tall. We don't assert exact placement (depends on
+    // centering math) but the box must enclose every child.
+    for (const id of ['group.a', 'group.b'] as const) {
+      const c = useGraphStore.getState().layout!.nodes[id]!;
+      expect(g!.x).toBeLessThanOrEqual(c.x);
+      expect(g!.y).toBeLessThanOrEqual(c.y);
+      expect(g!.x + g!.w).toBeGreaterThanOrEqual(c.x + c.w);
+      expect(g!.y + g!.h).toBeGreaterThanOrEqual(c.y + c.h);
+    }
+    // And it really shrank (was 600×400).
+    expect(g!.w).toBeLessThan(600);
+    expect(g!.h).toBeLessThan(400);
+  });
+
+  it('does not move the descendants', async () => {
+    const { model, layout } = withGroup();
+    seed(model, layout);
+    const before = {
+      a: { ...layout.nodes['group.a']! },
+      b: { ...layout.nodes['group.b']! },
+    };
+    await useGraphStore.getState().fitContainer('group');
+    expect(useGraphStore.getState().layout?.nodes['group.a']!.x).toBe(before.a.x);
+    expect(useGraphStore.getState().layout?.nodes['group.a']!.y).toBe(before.a.y);
+    expect(useGraphStore.getState().layout?.nodes['group.b']!.x).toBe(before.b.x);
+    expect(useGraphStore.getState().layout?.nodes['group.b']!.y).toBe(before.b.y);
+  });
+
+  it('snapshots once for history so undo restores the prior box', async () => {
+    const { model, layout } = withGroup();
+    seed(model, layout);
+    const beforeBox = { ...layout.nodes.group! };
+    await useGraphStore.getState().fitContainer('group');
+    expect(useGraphStore.getState().past.length).toBe(1);
+    await useGraphStore.getState().undo();
+    const after = useGraphStore.getState().layout?.nodes.group;
+    expect(after?.x).toBe(beforeBox.x);
+    expect(after?.y).toBe(beforeBox.y);
+    expect(after?.w).toBe(beforeBox.w);
+    expect(after?.h).toBe(beforeBox.h);
+  });
+
+  it('no-ops on a non-container (no descendants)', async () => {
+    const { model, layout } = withGroup();
+    seed(model, layout);
+    const before = layout.nodes['group.a']!;
+    await useGraphStore.getState().fitContainer('group.a');
+    const after = useGraphStore.getState().layout?.nodes['group.a'];
+    expect(after?.x).toBe(before.x);
+    expect(after?.y).toBe(before.y);
+    expect(after?.w).toBe(before.w);
+    expect(after?.h).toBe(before.h);
+    expect(useGraphStore.getState().past.length).toBe(0);
+  });
+
+  it('clamps the new container box to a grandparent', async () => {
+    const model: Model = {
+      nodes: {
+        outer: { label: 'outer', shape: 'rectangle', style: {}, rawWidth: 200, rawHeight: 200 },
+        'outer.inner': {
+          label: 'inner',
+          shape: 'rectangle',
+          style: {},
+          rawWidth: 200,
+          rawHeight: 200,
+        },
+        'outer.inner.leaf': {
+          label: 'leaf',
+          shape: 'rectangle',
+          style: {},
+          rawWidth: 64,
+          rawHeight: 64,
+        },
+      },
+      edges: {},
+    };
+    const layout: Layout = {
+      ...baseLayout(),
+      nodes: {
+        outer: nodeLayout(0, 0, 200, 200),
+        'outer.inner': nodeLayout(16, 16, 160, 160),
+        'outer.inner.leaf': nodeLayout(32, 32, 64, 64),
+      },
+      edges: {},
+    };
+    seed(model, layout);
+    await useGraphStore.getState().fitContainer('outer.inner');
+    const inner = useGraphStore.getState().layout?.nodes['outer.inner'];
+    expect(inner).toBeDefined();
+    // The fitted inner container must stay inside `outer`.
+    expect(inner!.x).toBeGreaterThanOrEqual(0);
+    expect(inner!.y).toBeGreaterThanOrEqual(0);
+    expect(inner!.x + inner!.w).toBeLessThanOrEqual(200);
+    expect(inner!.y + inner!.h).toBeLessThanOrEqual(200);
+  });
+});
+
+describe('loadFromCompile preserveHistory', () => {
+  // Stub compileD2 with a minimal single-shape diagram. Geometry doesn't
+  // matter; we only assert how `past`/`future` evolve.
+  const compileStub = compileD2 as unknown as ReturnType<typeof vi.fn>;
+  beforeEach(() => {
+    compileStub.mockResolvedValue({
+      ok: true,
+      result: {
+        diagram: {
+          shapes: [{ id: 'a', type: 'rectangle', pos: { x: 0, y: 0 }, width: 96, height: 64 }],
+          connections: [],
+        },
+      },
+    });
+  });
+
+  it('pushes the live layout onto past when preserveHistory is true', async () => {
+    const startLayout = useGraphStore.getState().layout!;
+    expect(useGraphStore.getState().past.length).toBe(0);
+    await useGraphStore.getState().loadFromCompile({
+      files: { 'index.d2': '' },
+      inputPath: 'index.d2',
+      preserveHistory: true,
+    });
+    const after = useGraphStore.getState();
+    expect(after.past.length).toBe(1);
+    expect(after.past[0]).toBe(startLayout);
+    expect(after.future).toEqual([]);
+  });
+
+  it('resets history when preserveHistory is omitted (default reload path)', async () => {
+    useGraphStore.setState({ past: [baseLayout(), baseLayout()] });
+    await useGraphStore.getState().loadFromCompile({
+      files: { 'index.d2': '' },
+      inputPath: 'index.d2',
+    });
+    expect(useGraphStore.getState().past).toEqual([]);
+    expect(useGraphStore.getState().future).toEqual([]);
   });
 });

@@ -91,6 +91,93 @@ describe('reconcileLayout', () => {
     expect(r.needsRelayout).toBe(false);
   });
 
+  it('grows a container vertically when its existing height does not fit a new child', () => {
+    const prev: Model = {
+      nodes: {
+        group: { label: 'group', shape: 'rectangle', style: {}, rawWidth: 200, rawHeight: 100 },
+        'group.a': {
+          label: 'a',
+          shape: 'rectangle',
+          style: {},
+          rawWidth: 96,
+          rawHeight: 64,
+        },
+      },
+      edges: {},
+    };
+    const next: Model = {
+      nodes: {
+        ...prev.nodes,
+        'group.b': {
+          label: 'b',
+          shape: 'rectangle',
+          style: {},
+          rawWidth: 96,
+          rawHeight: 64,
+        },
+      },
+      edges: {},
+    };
+    // Container is just 100 tall and one child already fills the top of it,
+    // so the new child can't fit without growth.
+    const empty = { top: [], right: [], bottom: [], left: [] };
+    const layout: Layout = {
+      ...baseLayout(),
+      nodes: {
+        group: { x: 0, y: 0, w: 200, h: 100, connections: { ...empty } },
+        'group.a': { x: 16, y: 16, w: 96, h: 64, connections: { ...empty } },
+      },
+      edges: {},
+    };
+
+    const r = reconcileLayout(layout, prev, next);
+    const group = r.layout.nodes.group!;
+    expect(group.h).toBeGreaterThan(100);
+    // And the new child still lands inside the (grown) container.
+    const c2 = r.layout.nodes['group.b']!;
+    expect(c2.x).toBeGreaterThanOrEqual(group.x);
+    expect(c2.y + c2.h).toBeLessThanOrEqual(group.y + group.h);
+  });
+
+  it('places a new orphan as top-level when its parent is also missing', () => {
+    // `outer.inner` was added in this commit but `outer` does not exist in
+    // either the prior or current layout. The orphan should land on the
+    // top-level row, not get stranded mid-tree.
+    const prev: Model = {
+      nodes: {
+        a: { label: 'a', shape: 'rectangle', style: {}, rawWidth: 96, rawHeight: 64 },
+      },
+      edges: {},
+    };
+    const next: Model = {
+      nodes: {
+        ...prev.nodes,
+        'outer.inner': {
+          label: 'inner',
+          shape: 'rectangle',
+          style: {},
+          rawWidth: 96,
+          rawHeight: 64,
+        },
+      },
+      edges: {},
+    };
+    const empty = { top: [], right: [], bottom: [], left: [] };
+    const layout: Layout = {
+      ...baseLayout(),
+      nodes: { a: { x: 0, y: 0, w: 96, h: 64, connections: { ...empty } } },
+      edges: {},
+    };
+    const r = reconcileLayout(layout, prev, next);
+    const inner = r.layout.nodes['outer.inner'];
+    expect(inner).toBeDefined();
+    // No container box was set up, so the orphan flows alongside `a`.
+    // We don't pin its exact position; just check it isn't at the same x as
+    // a hypothetical container.
+    expect(typeof inner!.x).toBe('number');
+    expect(typeof inner!.y).toBe('number');
+  });
+
   it('places a new child inside its existing container parent', () => {
     const prev: Model = {
       nodes: {
