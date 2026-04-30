@@ -46,6 +46,9 @@ export interface RenderNode {
   // Container nodes render behind edges so the connections that target them
   // (or pass over them) stay visible.
   isContainer: boolean;
+  // For shape: image — the raw path string from D2's `icon` keyword. The
+  // web renderer resolves it against the project folder.
+  imageSrc?: string;
 }
 
 export interface LabelPlacement {
@@ -86,7 +89,7 @@ export function buildRenderPlan({ model, layout, routes, theme }: BuildPlanInput
     const y = l?.y ?? 0;
     const w = l?.w ?? n.rawWidth;
     const h = l?.h ?? n.rawHeight;
-    return {
+    const out: RenderNode = {
       id,
       shape: n.shape,
       x,
@@ -98,6 +101,8 @@ export function buildRenderPlan({ model, layout, routes, theme }: BuildPlanInput
       style: resolveNodeStyle(palette, n.style),
       isContainer: isContainer(nodeIds, id),
     };
+    if (n.imageSrc) out.imageSrc = n.imageSrc;
+    return out;
   });
 
   const edges: RenderEdge[] = Object.entries(model.edges).map(([id, e]) => {

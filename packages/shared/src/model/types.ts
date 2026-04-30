@@ -25,7 +25,8 @@ export type ShapeKind =
   | 'text'
   | 'code'
   | 'class'
-  | 'sql_table';
+  | 'sql_table'
+  | 'image';
 
 export interface NodeStyle {
   fill?: string;
@@ -46,6 +47,15 @@ export interface EdgeStyle {
   strokeDash?: number;
   fontColor?: string;
   opacity?: number;
+  // D2 supports `style.bold` and `style.italic` on connections too; we now
+  // pass them through so edge labels respect the same typography flags as
+  // node labels.
+  bold?: boolean;
+  italic?: boolean;
+  // D2's `style.animated: true` produces marching-ants on the edge stroke.
+  // The renderer turns this into a CSS keyframe animation on
+  // `stroke-dashoffset`.
+  animated?: boolean;
 }
 
 // D2's `labelPosition` strings: `<INSIDE|BORDER|OUTSIDE>_<TOP|MIDDLE|BOTTOM>_<LEFT|CENTER|RIGHT>`,
@@ -60,6 +70,10 @@ export interface ModelNode {
   rawWidth: number;
   rawHeight: number;
   labelPosition?: LabelPosition;
+  // For shape: image — the `icon` path D2 emitted, kept verbatim. The
+  // renderer (web layer) is responsible for resolving it relative to the
+  // active project folder and turning it into something <image> can load.
+  imageSrc?: string;
 }
 
 // D2's arrowhead palette. Mirrors the @terrastruct/d2 `Arrowhead` union.

@@ -68,12 +68,21 @@ export function EdgeView({ edge }: { edge: RenderEdge }): JSX.Element {
         </mask>
       )}
       <path
+        className={edge.style.animated ? 'edge-animated' : undefined}
         d={path}
         fill="none"
         stroke={stroke}
         strokeWidth={strokeWidth}
         opacity={opacity}
-        {...(edge.style.strokeDasharray ? { strokeDasharray: edge.style.strokeDasharray } : {})}
+        // D2's `style.animated: true` becomes the marching-ants effect via
+        // a CSS keyframe in app.css that animates `stroke-dashoffset`. We
+        // force a dash array (8 4) when animated so the effect is visible
+        // even on edges that didn't set their own `style.stroke-dash`.
+        {...(edge.style.animated
+          ? { strokeDasharray: edge.style.strokeDasharray ?? '8 4' }
+          : edge.style.strokeDasharray
+            ? { strokeDasharray: edge.style.strokeDasharray }
+            : {})}
         {...(maskId ? { mask: `url(#${maskId})` } : {})}
       />
       {srcArrow &&
@@ -89,6 +98,8 @@ export function EdgeView({ edge }: { edge: RenderEdge }): JSX.Element {
           rect={labelRect}
           midpoint={edge.midpoint}
           color={edge.style.fontColor}
+          fontWeight={edge.style.fontWeight}
+          fontStyle={edge.style.fontStyle}
         >
           {edge.label}
         </EdgeLabel>
@@ -109,6 +120,8 @@ function EdgeLabel({
   rect,
   midpoint,
   color,
+  fontWeight,
+  fontStyle,
   children,
 }: {
   edgeId: string;
@@ -116,6 +129,8 @@ function EdgeLabel({
   rect: { x: number; y: number; w: number; h: number };
   midpoint: Point;
   color: string;
+  fontWeight: number;
+  fontStyle: 'normal' | 'italic';
   children: React.ReactNode;
 }): JSX.Element {
   const moveEdgeLabel = useGraphStore((s) => s.moveEdgeLabel);
@@ -191,6 +206,8 @@ function EdgeLabel({
         dominantBaseline="central"
         fill={color}
         fontSize={LABEL_FONT_SIZE}
+        fontWeight={fontWeight}
+        fontStyle={fontStyle}
         pointerEvents="none"
       >
         {children}

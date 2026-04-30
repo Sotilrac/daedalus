@@ -56,7 +56,10 @@ export interface ResolvedEdgeStyle {
   strokeWidth: number;
   strokeDasharray?: string;
   fontColor: string;
+  fontWeight: number;
+  fontStyle: 'normal' | 'italic';
   opacity: number;
+  animated: boolean;
 }
 
 // `fill: transparent` from D2 is interpreted by some renderers (notably the
@@ -127,7 +130,10 @@ export function resolveEdgeStyle(palette: ThemePalette, style: EdgeStyle): Resol
     stroke: style.stroke ?? palette.ink,
     strokeWidth: style.strokeWidth ?? 1,
     fontColor: style.fontColor ?? palette.ink,
+    fontWeight: style.bold ? 600 : 400,
+    fontStyle: style.italic ? 'italic' : 'normal',
     opacity: style.opacity ?? 1,
+    animated: style.animated === true,
   };
   if (style.strokeDash) out.strokeDasharray = `${style.strokeDash} ${style.strokeDash}`;
   return out;

@@ -2,6 +2,8 @@ import { useRef, useState } from 'react';
 import type { NodeId, RenderNode } from '@daedalus/shared';
 import { personBodyTop, wrapLabel } from '@daedalus/shared';
 import { useGraphStore } from '../store/graphStore.js';
+import { useSourceStore } from '../store/sourceStore.js';
+import { useAssetUrl } from '../util/useAssetUrl.js';
 import { AnchorControls } from './AnchorControls.js';
 
 const LABEL_FONT_SIZE = 12;
@@ -139,8 +141,8 @@ export function NodeView({
         fill="transparent"
         pointerEvents="all"
       />
-      {renderShape(node)}
-      {renderLabel(node)}
+      <ShapeRenderer node={node} />
+      {node.label ? renderLabel(node) : null}
       {/* Hover ring: shown via CSS only when the group is hovered and not
           selected — previews what a click is about to select. */}
       <rect
@@ -237,16 +239,53 @@ function hitHalo(node: RenderNode): number {
   return Math.max(MIN_HIT_HALO, Math.ceil(node.style.strokeWidth));
 }
 
+// Wraps the shape rendering so image nodes can use the `useAssetUrl` hook
+// (which renderShape can't, being a plain function). The trigger is the
+// presence of `imageSrc`, not `shape === 'image'`, because D2 doesn't
+// always set `type: "image"` even when the user wrote `shape: image` —
+// it sometimes leaves `type` at the prior shape and just attaches the
+// icon. This way `icon: foo.svg` always renders the image, with or
+// without an explicit `shape: image`. The fallback rectangle keeps the
+// node visible while the image is loading or when the file can't be
+// read.
+function ShapeRenderer({ node }: { node: RenderNode }): JSX.Element {
+  const rootPath = useSourceStore((s) => s.rootPath);
+  const hasImage = !!node.imageSrc;
+  const url = useAssetUrl(hasImage ? rootPath : null, hasImage ? node.imageSrc : undefined);
+  if (!hasImage) return renderShape(node);
+  if (!url) {
+    return <rect width={node.w} height={node.h} fill="transparent" stroke="none" />;
+  }
+  return (
+    <image
+      href={url}
+      x={0}
+      y={0}
+      width={node.w}
+      height={node.h}
+      preserveAspectRatio="xMidYMid meet"
+      pointerEvents="all"
+    />
+  );
+}
+
 function renderLabel(node: RenderNode): JSX.Element {
   const { x, y, textAnchor, dominantBaseline } = node.labelPlacement;
   const fontSize = node.style.fontSize ?? LABEL_FONT_SIZE;
   const maxWidth = Math.max(fontSize, node.w - LABEL_HORIZONTAL_PADDING);
-  const lines = wrapLabel(node.label, maxWidth, fontSize);
+  // `code` shapes render their label in the monospace stack and don't
+  // soft-wrap (newlines from the source D2 are preserved verbatim, but a
+  // long single line keeps going). Other shapes use the default sans
+  // stack and soft-wrap to fit the box.
+  const isCode = node.shape === 'code';
+  const lines = isCode ? node.label.split(/\r?\n/) : wrapLabel(node.label, maxWidth, fontSize);
   const textProps = {
     fill: node.style.fontColor,
     fontWeight: node.style.fontWeight,
     fontStyle: node.style.fontStyle,
     fontSize,
+    ...(isCode ? { fontFamily: 'var(--font-mono)' } : {}),
+    ...(isCode ? { 'xml:space': 'preserve' as const } : {}),
   };
   if (lines.length === 1) {
     return (
@@ -416,6 +455,10 @@ function renderShape(node: RenderNode): JSX.Element {
       // Pure-label shapes: no border, no fill. The label text rendered by the
       // caller is the entire visible content. We still emit an invisible rect
       // so getBBox / hit-testing for the group has something to hold.
+      return <rect width={w} height={h} fill="transparent" stroke="none" pointerEvents="all" />;
+    case 'image':
+      // Handled by ShapeRenderer (which uses the asset hook); this branch is
+      // a defensive fallback if someone calls renderShape directly.
       return <rect width={w} height={h} fill="transparent" stroke="none" pointerEvents="all" />;
     case 'class':
     case 'sql_table': {

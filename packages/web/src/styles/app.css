@@ -405,6 +405,20 @@ button:disabled {
   display: block;
 }
 
+/* D2's `style.animated: true` on a connection translates to a marching-ants
+  effect: the stroke dash array slides along the path forever. We use a
+  fixed offset cycle (24px ≈ 8+4+8+4) so the speed is consistent regardless
+  of the dash array the path declares. */
+.edge-animated {
+  animation: edge-march 0.8s linear infinite;
+}
+
+@keyframes edge-march {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
 /* Boot-time placeholder: there's a saved project folder being recompiled
   but the render plan isn't ready yet. Show the dot grid behind the empty
   area so the user sees the editor chrome immediately instead of a blank

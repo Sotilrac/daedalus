@@ -32,6 +32,7 @@ const SHAPE_KINDS = new Set<ShapeKind>([
   'code',
   'class',
   'sql_table',
+  'image',
 ]);
 
 function asShapeKind(t: string | undefined): ShapeKind {
@@ -67,6 +68,20 @@ interface D2FlatNode {
   // "OUTSIDE_BOTTOM_LEFT", etc. May be missing on older d2 versions or when
   // the user didn't set `near`.
   labelPosition?: string;
+  // For `shape: image`, D2 emits the icon as Go's `*url.URL` struct,
+  // serialized verbatim — *not* the string form the bundled typings claim.
+  // Older d2 versions may emit the string; we accept either.
+  icon?: string | D2URL;
+}
+
+// JSON-serialized `*url.URL`. Fields match Go's `net/url.URL` struct.
+interface D2URL {
+  Scheme?: string;
+  Host?: string;
+  Path?: string;
+  RawPath?: string;
+  RawQuery?: string;
+  Fragment?: string;
 }
 
 interface D2FlatConnection {
@@ -81,6 +96,7 @@ interface D2FlatConnection {
   color?: string;
   italic?: boolean;
   bold?: boolean;
+  animated?: boolean;
   srcArrow?: string;
   dstArrow?: string;
 }
@@ -147,12 +163,44 @@ function edgeStyle(c: D2FlatConnection): EdgeStyle {
   // Falling through to the resolver lets the theme's ink apply instead.
   if (c.fontColor !== undefined && !isThemeToken(c.fontColor)) out.fontColor = c.fontColor;
   if (typeof c.opacity === 'number' && c.opacity !== 1) out.opacity = c.opacity;
+  if (c.bold) out.bold = true;
+  if (c.italic) out.italic = true;
+  if (c.animated) out.animated = true;
   return out;
 }
 
+// Reconstruct a usable URL/path string from D2's icon value. D2 may emit it
+// as a plain string or — more commonly under recent versions — as the
+// JSON-serialised form of a Go `*url.URL` struct. For relative icons (no
+// scheme, no host), we return the Path verbatim so the web layer can join
+// it against the project root. For absolute URLs we reconstruct the
+// scheme://host/path form.
+function iconString(icon: string | D2URL | null | undefined): string | undefined {
+  // Guard `null` explicitly: D2 emits `"icon": null` for shapes that have
+  // no icon set, and `typeof null === 'object'` would slip past the
+  // string check below and crash on `icon.Path`.
+  if (icon === null || icon === undefined) return undefined;
+  if (typeof icon === 'string') return icon.length > 0 ? icon : undefined;
+  const path = icon.Path ?? '';
+  if (icon.Scheme && icon.Scheme.length > 0) {
+    const host = icon.Host ?? '';
+    return `${icon.Scheme}://${host}${path}`;
+  }
+  return path.length > 0 ? path : undefined;
+}
+
 function shapeToNode(s: D2FlatNode): ModelNode {
+  // For image shapes, D2 falls the label back to the node id when the user
+  // didn't write one (`rat: {shape: image; icon: rat.svg}` ⇒ label="rat").
+  // That's a useful default for regular shapes — the box would otherwise
+  // be blank — but for images the picture *is* the content, so an
+  // auto-derived label would just stamp the id over the icon. Suppress
+  // the label when D2 didn't emit one distinct from the id.
+  const isImage = s.type === 'image';
+  const labelMatchesId = s.label === undefined || s.label === s.id;
+  const label = isImage && labelMatchesId ? '' : (s.label ?? s.id);
   const out: ModelNode = {
-    label: s.label ?? s.id,
+    label,
     shape: asShapeKind(s.type),
     style: nodeStyle(s),
     rawWidth: s.width ?? 144,
@@ -161,6 +209,8 @@ function shapeToNode(s: D2FlatNode): ModelNode {
   if (s.labelPosition && s.labelPosition !== 'UNSET_LABEL_POSITION') {
     out.labelPosition = s.labelPosition;
   }
+  const icon = iconString(s.icon);
+  if (icon) out.imageSrc = icon;
   return out;
 }
 
