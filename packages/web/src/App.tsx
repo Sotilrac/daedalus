@@ -622,9 +622,11 @@ export function App(): JSX.Element {
   // PNG export at a user-chosen pixel width. Scale = targetWidth/sourceWidth
   // is forwarded to the rasteriser; the rasteriser multiplies the canvas
   // dimensions by `scale`, so width=sourceWidth produces a 1× file and
-  // width=2*sourceWidth produces a 2× file.
+  // width=2*sourceWidth produces a 2× file. `withBackground` toggles a
+  // solid fill behind the diagram (the active theme's paper colour) so
+  // the export isn't transparent.
   const onExportPngAtSize = useCallback(
-    async (targetWidth: number, _targetHeight: number) => {
+    async (targetWidth: number, _targetHeight: number, withBackground: boolean) => {
       if (!svgRef.current || !layout) return;
       const defaultPath = exportDefaultPath(rootPath, 'png');
       const dialogOpts: Parameters<typeof saveDialog>[0] = {
@@ -636,6 +638,14 @@ export function App(): JSX.Element {
       const finalPath = ensureExtension(path, 'png');
       const routes = useGraphStore.getState().routes;
       const opts = exportOpts(layout, routes);
+      if (withBackground) {
+        // Resolve the live `--paper` token off the source SVG so the
+        // exported background actually matches what the user sees in the
+        // editor (slate vs paper themes resolve to different hexes).
+        const computed = getComputedStyle(svgRef.current);
+        const paper = computed.getPropertyValue('--paper').trim();
+        opts.background = paper || '#ffffff';
+      }
       const sourceWidth = opts.bbox.w + opts.margin * 2;
       const scale = sourceWidth > 0 ? targetWidth / sourceWidth : 1;
       const blob = await svgToPngBlob(svgRef.current, opts, scale);
@@ -919,7 +929,7 @@ export function App(): JSX.Element {
             <PngExportDialog
               defaultWidth={pngSourceSize.w}
               defaultHeight={pngSourceSize.h}
-              onExport={(w, h) => void onExportPngAtSize(w, h)}
+              onExport={(w, h, bg) => void onExportPngAtSize(w, h, bg)}
             />
           )}
         </span>

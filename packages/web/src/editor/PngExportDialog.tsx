@@ -6,7 +6,10 @@ export interface PngExportDialogProps {
   // dimension recomputes the other.
   defaultWidth: number;
   defaultHeight: number;
-  onExport: (width: number, height: number) => void;
+  // The exported PNG is transparent by default. When `withBackground` is
+  // true, the export pipeline fills the canvas with a solid colour
+  // (typically the active theme's paper tint) so it isn't transparent.
+  onExport: (width: number, height: number, withBackground: boolean) => void;
 }
 
 export function PngExportDialog({
@@ -16,6 +19,7 @@ export function PngExportDialog({
 }: PngExportDialogProps): JSX.Element {
   const [width, setWidth] = useState(defaultWidth);
   const [height, setHeight] = useState(defaultHeight);
+  const [withBackground, setWithBackground] = useState(false);
   const aspect = defaultHeight === 0 ? 1 : defaultWidth / defaultHeight;
 
   const updateFromWidth = (raw: string): void => {
@@ -35,7 +39,7 @@ export function PngExportDialog({
 
   const onSubmit = (e: FormEvent<HTMLFormElement>): void => {
     e.preventDefault();
-    onExport(width, height);
+    onExport(width, height, withBackground);
   };
 
   // Round to 2 decimals; defaultWidth is always > 0 in practice (button is
@@ -67,6 +71,17 @@ export function PngExportDialog({
           min={1}
           value={height}
           onChange={(e) => updateFromHeight(e.target.value)}
+        />
+      </label>
+      <label
+        className="row checkbox"
+        title="Fill the export with the active theme's paper colour instead of leaving it transparent."
+      >
+        <span>Background</span>
+        <input
+          type="checkbox"
+          checked={withBackground}
+          onChange={(e) => setWithBackground(e.target.checked)}
         />
       </label>
       <div className="row hint" aria-hidden>

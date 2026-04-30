@@ -32,6 +32,11 @@ export interface ExportOptions {
   showGrid: boolean;
   // Bounding box of the diagram content (typically all rendered nodes).
   bbox: { x: number; y: number; w: number; h: number };
+  // Optional solid fill behind the diagram (CSS colour string). When set,
+  // a `<rect>` is prepended that covers the entire cropped viewBox so PNG
+  // exports come out non-transparent. Undefined / null leaves the export
+  // transparent — the prior behaviour.
+  background?: string;
 }
 
 function inlineThemeTokens(source: SVGSVGElement, target: SVGSVGElement): void {
@@ -87,6 +92,24 @@ function applyCrop(svg: SVGSVGElement, opts: ExportOptions): void {
   }
 }
 
+function applyBackground(svg: SVGSVGElement, opts: ExportOptions): void {
+  if (!opts.background) return;
+  // Insert a solid-fill rect covering the cropped viewBox as the very
+  // first child, so it sits behind everything else. Coordinates match
+  // applyCrop's viewBox rectangle exactly.
+  const x = opts.bbox.x - opts.margin;
+  const y = opts.bbox.y - opts.margin;
+  const w = opts.bbox.w + opts.margin * 2;
+  const h = opts.bbox.h + opts.margin * 2;
+  const rect = svg.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  rect.setAttribute('x', String(x));
+  rect.setAttribute('y', String(y));
+  rect.setAttribute('width', String(w));
+  rect.setAttribute('height', String(h));
+  rect.setAttribute('fill', opts.background);
+  svg.insertBefore(rect, svg.firstChild);
+}
+
 export function serializeSvg(svg: SVGSVGElement, opts: ExportOptions): string {
   const clone = svg.cloneNode(true) as SVGSVGElement;
   clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
@@ -97,9 +120,10 @@ export function serializeSvg(svg: SVGSVGElement, opts: ExportOptions): string {
   clone.style.removeProperty('background-color');
   if (!opts.showGrid) stripGrid(clone);
   applyCrop(clone, opts);
-  // No canvas background: SVG and PNG both export transparent so the diagram
-  // can drop into any document or theme. Edge labels punch a hole in the
-  // line via an SVG mask, so there's no pill backdrop to whiten anymore.
+  // Default: SVG and PNG export transparent so the diagram drops into any
+  // document or theme. Set `opts.background` to inject a solid-fill rect
+  // as the bottom layer (used by the PNG dialog's "Background" option).
+  applyBackground(clone, opts);
   inlineThemeTokens(svg, clone);
   stripEditorChrome(clone);
   return new XMLSerializer().serializeToString(clone);

@@ -827,6 +827,14 @@ button:disabled {
   letter-spacing: 0.04em;
 }
 
+.png-export-dialog .row.checkbox {
+  cursor: pointer;
+}
+
+.png-export-dialog input[type='checkbox'] {
+  accent-color: var(--accent);
+}
+
 .png-export-dialog input[type='number'] {
   width: 90px;
   font: inherit;
