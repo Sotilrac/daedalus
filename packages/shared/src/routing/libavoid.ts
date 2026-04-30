@@ -191,7 +191,17 @@ async function defaultFactory(): Promise<RouterFactoryResult> {
         setParam('shapeBufferDistance', input.shapeBuffer);
         setParam('idealNudgingDistance', input.nudging);
         setParam('segmentPenalty', 50);
-        setParam('crossingPenalty', 200);
+        // Two flavours of edge-on-edge overlap, both expensive now:
+        //   crossingPenalty = cost when one route crosses another at a
+        //     point. Raised from 200 to 800 so libavoid prefers a longer
+        //     detour over a clean geometric crossing.
+        //   fixedSharedPathPenalty = cost when one route runs along the
+        //     same segment as another (parallel coincident lines). Default
+        //     is 0 — i.e. unrestricted — which is why pairs of edges
+        //     occasionally stack on top of each other. 600 pushes them
+        //     apart by `idealNudgingDistance` instead.
+        setParam('crossingPenalty', 800);
+        setParam('fixedSharedPathPenalty', 600);
         setParam('portDirectionPenalty', 100);
         // Discourages U-turns: a route segment that doubles back on itself
         // costs 20 over a forward-going alternative, so libavoid prefers
