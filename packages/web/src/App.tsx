@@ -422,6 +422,10 @@ export function App(): JSX.Element {
         });
         lastPersistedRef.current = null;
         setErrors([]);
+        // Centre the view on the new layout — relayout typically shifts
+        // the bbox, and leaving the user looking at the previous viewport
+        // means they're scrolled to wherever the old centre was.
+        requestAnimationFrame(() => onCenterRef.current());
       } catch (err) {
         setErrors(normalizeD2Error(err));
       } finally {
