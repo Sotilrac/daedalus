@@ -13,10 +13,12 @@ describe('snapAndAssignSides', () => {
           id: 'a->b#0',
           from: 'a',
           to: 'b',
+          // First waypoint sits squarely on a's right edge after snapping
+          // (a is now 128 wide × 64 tall at y=16); last sits on b's left edge.
           route: [
-            { x: 100, y: 30 },
-            { x: 200, y: 30 },
-            { x: 304, y: 30 },
+            { x: 128, y: 48 },
+            { x: 200, y: 48 },
+            { x: 304, y: 32 },
           ],
         },
       ],
@@ -27,7 +29,9 @@ describe('snapAndAssignSides', () => {
     });
 
     expect(nodes.a?.x).toBe(0);
-    expect(nodes.a?.w).toBe(112);
+    // Initial node sizes round up to the next power of two so the resize step
+    // (grid * 2 = 32) lands cleanly on subsequent grow/shrink ticks.
+    expect(nodes.a?.w).toBe(128);
     expect(nodes.b?.x).toBe(304);
     expect(edgeSides['a->b#0']).toEqual({ fromSide: 'right', toSide: 'left' });
     expect(nodes.a?.connections.right).toEqual(['a->b#0']);

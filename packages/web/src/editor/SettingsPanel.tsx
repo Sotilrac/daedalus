@@ -130,20 +130,22 @@ export function SettingsPanel({
           </section>
         </>
       )}
-      <section>
-        <h3>Developer</h3>
-        <label
-          className="row checkbox"
-          title="Re-enable the browser context menu on the canvas (for inspecting elements while developing)."
-        >
-          <input
-            type="checkbox"
-            checked={allowContextMenu}
-            onChange={(e) => onAllowContextMenuChange(e.target.checked)}
-          />
-          <span>Allow right-click on canvas</span>
-        </label>
-      </section>
+      {import.meta.env.DEV && (
+        <section>
+          <h3>Developer</h3>
+          <label
+            className="row checkbox"
+            title="Re-enable the browser context menu on the canvas (for inspecting elements while developing)."
+          >
+            <input
+              type="checkbox"
+              checked={allowContextMenu}
+              onChange={(e) => onAllowContextMenuChange(e.target.checked)}
+            />
+            <span>Allow right-click on canvas</span>
+          </label>
+        </section>
+      )}
     </div>
   );
 }

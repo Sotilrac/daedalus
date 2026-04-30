@@ -8,7 +8,8 @@ import type {
   Side,
 } from '../model/types.js';
 import { SIDES, emptyConnections } from '../model/types.js';
-import { snap, snapUp } from './snap.js';
+import { parentId } from '../model/ids.js';
+import { snap, snapUpPow2 } from './snap.js';
 import { diffModels, type ModelDiff } from './diff.js';
 
 export interface ReconcileResult {
@@ -85,35 +86,93 @@ function stripDropped(prev: Layout, model: Model): Layout {
   return { ...prev, nodes, edges, unplaced: [] };
 }
 
-// Place model nodes that lack a layout entry just to the right of the
-// existing bbox, stacked top-to-bottom on grid lines so they don't collide
-// with the user's hand-placed diagram.
+// Place model nodes that lack a layout entry. Nodes whose D2 parent is
+// already placed land inside the parent's box (stacked vertically against
+// existing children) so structural changes that nest a new node show up
+// inside the container, not floating off to the right of the diagram. The
+// parent is grown if its current size can't fit them. Top-level orphans
+// land just to the right of the existing bbox, stacked top-to-bottom.
 function placeMissingNodes(layout: Layout, model: Model): Layout {
   const missing = Object.keys(model.nodes).filter((id) => !layout.nodes[id]);
   if (missing.length === 0) return layout;
 
   const grid = layout.grid;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  for (const n of Object.values(layout.nodes)) {
-    if (n.y < minY) minY = n.y;
-    if (n.x + n.w > maxX) maxX = n.x + n.w;
-  }
-  const empty = !Number.isFinite(minY) || !Number.isFinite(maxX);
   const gap = grid.size * 2;
-  const startX = empty ? 0 : snap(maxX + gap, grid.size);
-  const startY = empty ? 0 : snap(minY, grid.size);
-
   const nodes = { ...layout.nodes };
-  let cursorY = startY;
+
+  // Bucket missing ids by parent (or null for top-level) so children of the
+  // same container stack inside that container in source order.
+  const groups = new Map<string | null, string[]>();
   for (const id of missing) {
-    const m = model.nodes[id];
-    if (!m) continue;
-    const w = snapUp(Math.max(m.rawWidth, grid.size), grid.size);
-    const h = snapUp(Math.max(m.rawHeight, grid.size), grid.size);
-    nodes[id] = { x: startX, y: cursorY, w, h, connections: emptyConnections() };
-    cursorY += h + gap;
+    const par = parentId(id);
+    const key = par && nodes[par] ? par : null;
+    const list = groups.get(key) ?? [];
+    list.push(id);
+    groups.set(key, list);
   }
+
+  // Children of an existing container: stack inside, growing the container
+  // height if the existing size can't accommodate them.
+  for (const [par, ids] of groups) {
+    if (!par) continue;
+    const parent = nodes[par];
+    if (!parent) continue;
+    const innerPad = grid.size;
+    // Find the current bottom-most occupied y inside the parent across its
+    // already-placed children, so we don't overlap them.
+    let cursorY = parent.y + innerPad;
+    for (const childId of Object.keys(nodes)) {
+      if (childId === par) continue;
+      if (parentId(childId) !== par) continue;
+      const c = nodes[childId];
+      if (!c) continue;
+      const bottom = c.y + c.h + gap;
+      if (bottom > cursorY) cursorY = bottom;
+    }
+    // Place each missing child snapped to power-of-2 dims, growing the parent
+    // box if it would overflow.
+    let parentBottom = parent.y + parent.h - innerPad;
+    for (const id of ids) {
+      const m = model.nodes[id];
+      if (!m) continue;
+      const w = snapUpPow2(m.rawWidth, grid.size);
+      const h = snapUpPow2(m.rawHeight, grid.size);
+      const x = parent.x + innerPad;
+      nodes[id] = { x, y: cursorY, w, h, connections: emptyConnections() };
+      cursorY += h + gap;
+      const nodeBottom = nodes[id].y + h;
+      if (nodeBottom > parentBottom) parentBottom = nodeBottom;
+    }
+    // Grow parent height if needed to enclose the new bottom.
+    const requiredH = parentBottom - parent.y + innerPad;
+    if (requiredH > parent.h) {
+      nodes[par] = { ...parent, h: snapUpPow2(requiredH, grid.size) };
+    }
+  }
+
+  // Top-level orphans (no parent in layout): stack to the right of the bbox.
+  const topLevel = groups.get(null) ?? [];
+  if (topLevel.length > 0) {
+    let minY = Infinity;
+    let maxX = -Infinity;
+    for (const n of Object.values(nodes)) {
+      if (n.y < minY) minY = n.y;
+      if (n.x + n.w > maxX) maxX = n.x + n.w;
+    }
+    const empty = !Number.isFinite(minY) || !Number.isFinite(maxX);
+    const startX = empty ? 0 : snap(maxX + gap, grid.size);
+    const startY = empty ? 0 : snap(minY, grid.size);
+    let cursorY = startY;
+    for (const id of topLevel) {
+      const m = model.nodes[id];
+      if (!m) continue;
+      const w = snapUpPow2(m.rawWidth, grid.size);
+      const h = snapUpPow2(m.rawHeight, grid.size);
+      nodes[id] = { x: startX, y: cursorY, w, h, connections: emptyConnections() };
+      cursorY += h + gap;
+    }
+  }
+
   return { ...layout, nodes, unplaced: [] };
 }
 

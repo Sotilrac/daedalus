@@ -262,7 +262,7 @@ button:disabled {
   background: var(--paper);
   padding: 3px 10px;
   border-radius: 999px;
-  max-width: min(60ch, calc(100% - 240px));
+  max-width: min(28ch, calc(100% - 240px));
   overflow: hidden;
   white-space: nowrap;
   z-index: 5;
@@ -274,7 +274,7 @@ button:disabled {
 
 .path-floating:hover,
 .path-floating:focus-within {
-  max-width: calc(100% - 36px);
+  max-width: min(80ch, calc(100% - 36px));
 }
 
 .path-floating .path-text {

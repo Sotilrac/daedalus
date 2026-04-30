@@ -8,7 +8,7 @@ import type {
   Side,
 } from '../model/types.js';
 import { defaultSettings, emptyConnections, SIDES } from '../model/types.js';
-import { snap, snapUp, clampToGrid } from './snap.js';
+import { snap, snapUpPow2, clampToGrid } from './snap.js';
 import { classifySide, sideSortKey, type BoundingBox } from './sides.js';
 import type { D2Diagram } from '../d2/types.js';
 
@@ -68,8 +68,8 @@ export function snapAndAssignSides(raw: RawLayout, opts: SnapLayoutOptions): Sna
 
   const nodes: Record<NodeId, NodeLayout> = {};
   for (const s of raw.shapes) {
-    const w = snapUp(Math.max(s.w, grid.size), grid.size);
-    const h = snapUp(Math.max(s.h, grid.size), grid.size);
+    const w = snapUpPow2(s.w, grid.size);
+    const h = snapUpPow2(s.h, grid.size);
     const sx = snap(s.x, grid.size);
     const sy = snap(s.y, grid.size);
     const { x, y } = clampToGrid(sx, sy, w, h, grid);
@@ -133,8 +133,8 @@ export function fitGridToShapes(raw: RawLayout, grid: GridConfig): GridConfig {
   let maxRight = 0;
   let maxBottom = 0;
   for (const s of raw.shapes) {
-    const w = snapUp(Math.max(s.w, grid.size), grid.size);
-    const h = snapUp(Math.max(s.h, grid.size), grid.size);
+    const w = snapUpPow2(s.w, grid.size);
+    const h = snapUpPow2(s.h, grid.size);
     const sx = snap(s.x, grid.size);
     const sy = snap(s.y, grid.size);
     maxRight = Math.max(maxRight, sx + w + margin);

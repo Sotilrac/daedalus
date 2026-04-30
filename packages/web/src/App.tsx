@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useGraphStore } from './store/graphStore.js';
 import { useSourceStore } from './store/sourceStore.js';
 import { TauriFolderSource, pickFolderViaTauri } from './sources/tauriFolderSource.js';
@@ -15,6 +15,7 @@ import {
   CopyIcon,
   ExportPngIcon,
   ExportSvgIcon,
+  FitContainerIcon,
   FolderOpenIcon,
   MatchSizeIcon,
   NewProjectIcon,
@@ -24,7 +25,7 @@ import {
   SettingsIcon,
   UndoIcon,
 } from './editor/icons.js';
-import { naturalBBox } from '@daedalus/shared';
+import { isContainer, naturalBBox } from '@daedalus/shared';
 import { normalizeD2Error } from '@daedalus/shared/d2';
 import {
   emptySidecar,
@@ -62,6 +63,35 @@ import { useUpdaterStore } from './util/updater.js';
 
 const RELEASES_URL = 'https://github.com/Sotilrac/daedalus/releases';
 
+// Detect macOS at module load. Tauri's webview reports a real user-agent so
+// this matches the underlying OS (Mac → ⌘ shortcuts, Windows/Linux → Ctrl).
+// Both physical keys still trigger the matcher (`metaKey || ctrlKey`); only
+// the label shown in tooltips is platform-specific.
+const IS_MAC =
+  typeof navigator !== 'undefined' && /mac|iphone|ipad|ipod/i.test(navigator.userAgent);
+const MOD = IS_MAC ? 'Cmd' : 'Ctrl';
+
+// Single source of truth for keyboard shortcut labels, used in the toolbar
+// tooltips. The keydown matcher below uses raw key codes so the actual
+// modifier is platform-correct on each OS.
+const KB = {
+  newProject: `${MOD}+N`,
+  openFolder: `${MOD}+O`,
+  reload: `${MOD}+R`,
+  undo: `${MOD}+Z`,
+  redo: `${MOD}+Shift+Z`,
+  center: `${MOD}+0`,
+  toggleEngine: `${MOD}+E`,
+  relayout: `${MOD}+Shift+L`,
+  alignX: `${MOD}+Shift+X`,
+  alignY: `${MOD}+Shift+Y`,
+  matchSize: `${MOD}+Shift+M`,
+  fitContainer: `${MOD}+Shift+F`,
+  copyPng: `${MOD}+Shift+C`,
+  exportSvg: `${MOD}+Shift+S`,
+  exportPng: `${MOD}+Shift+P`,
+} as const;
+
 export function App(): JSX.Element {
   const source = useSourceStore((s) => s.source);
   const rootPath = useSourceStore((s) => s.rootPath);
@@ -83,9 +113,23 @@ export function App(): JSX.Element {
   const undo = useGraphStore((s) => s.undo);
   const redo = useGraphStore((s) => s.redo);
   const selectionCount = useGraphStore((s) => s.selection.length);
+  const firstSelected = useGraphStore((s) => s.selection[0]);
+  // Subscribe to the model object reference (stable across non-reload renders)
+  // and derive the id list with useMemo. Returning a fresh `Object.keys(...)`
+  // straight from a Zustand selector trips React's "snapshot should be cached"
+  // check and loops the tree.
+  const model = useGraphStore((s) => s.model);
+  const modelNodeIds = useMemo(() => (model ? Object.keys(model.nodes) : null), [model]);
   const alignCenters = useGraphStore((s) => s.alignCenters);
   const matchSize = useGraphStore((s) => s.matchSize);
+  const fitContainer = useGraphStore((s) => s.fitContainer);
   const canAlign = selectionCount >= 2 && !showingAuto;
+  const selectedIsContainer =
+    selectionCount === 1 &&
+    !!firstSelected &&
+    !!modelNodeIds &&
+    isContainer(modelNodeIds, firstSelected);
+  const canFitContainer = selectedIsContainer && !showingAuto;
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Re-opens the welcome card on top of an open project (the home page renders
@@ -320,8 +364,8 @@ export function App(): JSX.Element {
 
   // Hard relayout: re-runs the engine over the current files with no prior
   // model or layout, so positions and per-side ordering are recomputed from
-  // scratch. Used when the user explicitly opts out of incremental reconcile
-  // (typically after a structural D2 change that moved nodes around).
+  // scratch. The pre-relayout layout is pushed onto the undo stack, so the
+  // user can revert with Cmd/Ctrl+Z if the engine pass isn't what they wanted.
   const onRelayout = useCallback(() => {
     if (!source) return;
     void (async () => {
@@ -334,6 +378,7 @@ export function App(): JSX.Element {
           inputPath: entryPath,
           prevModel: null,
           prevLayout: null,
+          preserveHistory: true,
         });
         lastPersistedRef.current = null;
         setErrors([]);
@@ -354,7 +399,34 @@ export function App(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Undo/redo keyboard shortcuts. Bound at the window level so they fire
+  // Stash every action the keydown handler can dispatch into a ref so the
+  // effect itself only attaches once. The handler reads `.current` at fire
+  // time, picking up the latest closures without re-binding the listener on
+  // every render. Refs are populated below this useEffect so they're always
+  // in sync with the latest props/state.
+  const actionsRef = useRef({
+    onCreateProject: (): void => undefined,
+    onPickFolder: (): void => undefined,
+    reload: (): void => undefined,
+    onCenter: (): void => undefined,
+    onToggleEngine: (): void => undefined,
+    onRelayout: (): void => undefined,
+    onAlignX: (): void => undefined,
+    onAlignY: (): void => undefined,
+    onMatchSize: (): void => undefined,
+    onFitContainer: (): void => undefined,
+    onCopyPng: (): void => undefined,
+    onExportSvg: (): void => undefined,
+    onExportPng: (): void => undefined,
+    canUseReload: false,
+    canUseEngine: false,
+    canUseRelayout: false,
+    canAlign: false,
+    canFitContainer: false,
+    canExport: false,
+  });
+
+  // Global keyboard shortcuts. Bound at the window level so they fire
   // regardless of which canvas element has focus. Suppressed inside text
   // inputs so future inline editing doesn't fight the editor history.
   useEffect(() => {
@@ -363,14 +435,93 @@ export function App(): JSX.Element {
       if (!meta) return;
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      const a = actionsRef.current;
       const k = e.key.toLowerCase();
-      if (k === 'z') {
-        e.preventDefault();
-        if (e.shiftKey) void useGraphStore.getState().redo();
-        else void useGraphStore.getState().undo();
-      } else if (k === 'y') {
-        e.preventDefault();
-        void useGraphStore.getState().redo();
+      const shift = e.shiftKey;
+      if (!shift) {
+        switch (k) {
+          case 'z':
+            e.preventDefault();
+            void useGraphStore.getState().undo();
+            return;
+          case 'y':
+            e.preventDefault();
+            void useGraphStore.getState().redo();
+            return;
+          case 'n':
+            e.preventDefault();
+            a.onCreateProject();
+            return;
+          case 'o':
+            e.preventDefault();
+            a.onPickFolder();
+            return;
+          case 'r':
+            if (!a.canUseReload) return;
+            e.preventDefault();
+            a.reload();
+            return;
+          case '0':
+            e.preventDefault();
+            a.onCenter();
+            return;
+          case 'e':
+            if (!a.canUseEngine) return;
+            e.preventDefault();
+            a.onToggleEngine();
+            return;
+          default:
+            return;
+        }
+      }
+      // shift + meta combinations
+      switch (k) {
+        case 'z':
+          e.preventDefault();
+          void useGraphStore.getState().redo();
+          return;
+        case 'l':
+          if (!a.canUseRelayout) return;
+          e.preventDefault();
+          a.onRelayout();
+          return;
+        case 'x':
+          if (!a.canAlign) return;
+          e.preventDefault();
+          a.onAlignX();
+          return;
+        case 'y':
+          if (!a.canAlign) return;
+          e.preventDefault();
+          a.onAlignY();
+          return;
+        case 'm':
+          if (!a.canAlign) return;
+          e.preventDefault();
+          a.onMatchSize();
+          return;
+        case 'f':
+          if (!a.canFitContainer) return;
+          e.preventDefault();
+          a.onFitContainer();
+          return;
+        case 'c':
+          if (!a.canExport) return;
+          e.preventDefault();
+          a.onCopyPng();
+          return;
+        case 's':
+          if (!a.canExport) return;
+          e.preventDefault();
+          a.onExportSvg();
+          return;
+        case 'p':
+          if (!a.canExport) return;
+          e.preventDefault();
+          a.onExportPng();
+          return;
+        default:
+          return;
       }
     };
     window.addEventListener('keydown', onKey);
@@ -387,7 +538,8 @@ export function App(): JSX.Element {
     const path = await saveDialog(dialogOpts);
     if (!path) return;
     const finalPath = ensureExtension(path, 'svg');
-    const blob = svgToBlob(svgRef.current, exportOpts(svgRef.current, layout));
+    const routes = useGraphStore.getState().routes;
+    const blob = svgToBlob(svgRef.current, exportOpts(layout, routes));
     await writeFile(finalPath, new Uint8Array(await blob.arrayBuffer()));
     rememberExportDir(finalPath);
   }, [rootPath, layout]);
@@ -424,10 +576,26 @@ export function App(): JSX.Element {
     const path = await saveDialog(dialogOpts);
     if (!path) return;
     const finalPath = ensureExtension(path, 'png');
-    const blob = await svgToPngBlob(svgRef.current, exportOpts(svgRef.current, layout), 2);
+    const routes = useGraphStore.getState().routes;
+    // Scale 1×: the PNG's pixel dimensions match the "{w} × {h} px" hint
+    // shown next to the export outline. Bumping the scale here previously
+    // shipped 2× pixels, which silently doubled the file's reported size.
+    const blob = await svgToPngBlob(svgRef.current, exportOpts(layout, routes), 1);
     await writeFile(finalPath, new Uint8Array(await blob.arrayBuffer()));
     rememberExportDir(finalPath);
   }, [rootPath, layout]);
+
+  const onToggleEngine = useCallback(() => {
+    if (!autoLayout || !layout) return;
+    void (async () => {
+      await toggleAutoLayout();
+      onCenter();
+    })();
+  }, [autoLayout, layout, toggleAutoLayout, onCenter]);
+
+  const onToggleSettings = useCallback(() => {
+    setSettingsOpen((o) => !o);
+  }, []);
 
   const onCloseProject = useCallback(() => {
     forgetFolder();
@@ -444,10 +612,11 @@ export function App(): JSX.Element {
       // Tauri's clipboard plugin expects raw RGBA + dimensions (not PNG-encoded
       // bytes). We rasterise the SVG straight to a canvas and forward the
       // pixels via the Image helper.
+      const routes = useGraphStore.getState().routes;
       const { width, height, rgba } = await svgToImageData(
         svgRef.current,
-        exportOpts(svgRef.current, layout),
-        2,
+        exportOpts(layout, routes),
+        1,
       );
       const image = await TauriImage.new(rgba, width, height);
       await clipboardWriteImage(image);
@@ -456,13 +625,59 @@ export function App(): JSX.Element {
     }
   }, [layout, setErrors]);
 
+  // Keep `actionsRef` in sync with the latest closures so the global keydown
+  // handler (which reads `.current` at fire time) doesn't capture stale state.
+  // Done in render rather than useEffect so a shortcut fires against whatever
+  // was rendered, not the previous frame.
+  actionsRef.current = {
+    onCreateProject: () => {
+      void onCreateProject();
+    },
+    onPickFolder: () => {
+      void onPickFolder();
+    },
+    reload: () => {
+      void reload({ recenter: false });
+    },
+    onCenter,
+    onToggleEngine,
+    onRelayout,
+    onAlignX: () => {
+      void alignCenters('x');
+    },
+    onAlignY: () => {
+      void alignCenters('y');
+    },
+    onMatchSize: () => {
+      void matchSize();
+    },
+    onFitContainer: () => {
+      if (firstSelected) void fitContainer(firstSelected);
+    },
+    onCopyPng: () => {
+      void onCopyPng();
+    },
+    onExportSvg: () => {
+      void onExportSvg();
+    },
+    onExportPng: () => {
+      void onExportPng();
+    },
+    canUseReload: !!source && !autoReload,
+    canUseEngine: !!autoLayout && !!layout,
+    canUseRelayout: !!source,
+    canAlign,
+    canFitContainer,
+    canExport: !!layout,
+  };
+
   return (
     <div className="app" data-theme={theme}>
       <nav className="toolbar" aria-label="Toolbar">
         <button
           className="icon-btn"
           onClick={() => void onCreateProject()}
-          title="New project"
+          title={`New project (${KB.newProject})`}
           aria-label="New project"
         >
           <NewProjectIcon />
@@ -470,7 +685,7 @@ export function App(): JSX.Element {
         <button
           className="icon-btn"
           onClick={() => void onPickFolder()}
-          title="Open folder"
+          title={`Open folder (${KB.openFolder})`}
           aria-label="Open folder"
         >
           <FolderOpenIcon />
@@ -480,7 +695,7 @@ export function App(): JSX.Element {
             className="icon-btn"
             onClick={() => void reload({ recenter: false })}
             disabled={!source}
-            title="Reload D2"
+            title={`Reload D2 (${KB.reload})`}
             aria-label="Reload D2"
           >
             <ReloadIcon />
@@ -491,7 +706,7 @@ export function App(): JSX.Element {
           className="icon-btn"
           onClick={() => void undo()}
           disabled={!canUndo || showingAuto}
-          title="Undo (Cmd/Ctrl+Z)"
+          title={`Undo (${KB.undo})`}
           aria-label="Undo"
         >
           <UndoIcon />
@@ -500,7 +715,7 @@ export function App(): JSX.Element {
           className="icon-btn"
           onClick={() => void redo()}
           disabled={!canRedo || showingAuto}
-          title="Redo (Cmd/Ctrl+Shift+Z)"
+          title={`Redo (${KB.redo})`}
           aria-label="Redo"
         >
           <RedoIcon />
@@ -510,25 +725,20 @@ export function App(): JSX.Element {
           className="icon-btn"
           onClick={onCenter}
           disabled={!layout}
-          title="Center view"
+          title={`Center view (${KB.center})`}
           aria-label="Center view"
         >
           <CenterIcon />
         </button>
         <button
           className="icon-btn"
-          onClick={() => {
-            void (async () => {
-              await toggleAutoLayout();
-              onCenter();
-            })();
-          }}
+          onClick={onToggleEngine}
           disabled={!autoLayout || !layout}
           aria-pressed={showingAuto}
           title={
             showingAuto
-              ? 'Showing engine layout (click to return to edits)'
-              : 'Compare against engine layout'
+              ? `Showing engine layout — click to return to edits (${KB.toggleEngine})`
+              : `Compare against engine layout (${KB.toggleEngine})`
           }
           aria-label="Toggle engine layout"
         >
@@ -538,7 +748,9 @@ export function App(): JSX.Element {
           className="icon-btn"
           onClick={onRelayout}
           disabled={!source}
-          title={needsRelayout ? 'Relayout (out of sync)' : 'Relayout'}
+          title={
+            needsRelayout ? `Relayout — out of sync (${KB.relayout})` : `Relayout (${KB.relayout})`
+          }
           aria-label="Relayout"
           data-attention={needsRelayout || undefined}
         >
@@ -549,7 +761,7 @@ export function App(): JSX.Element {
           className="icon-btn"
           onClick={() => void alignCenters('x')}
           disabled={!canAlign}
-          title="Align horizontal centres (first selected is the reference)"
+          title={`Align horizontal centres — first selected is the reference (${KB.alignX})`}
           aria-label="Align horizontal centres"
         >
           <AlignVerticalIcon />
@@ -558,7 +770,7 @@ export function App(): JSX.Element {
           className="icon-btn"
           onClick={() => void alignCenters('y')}
           disabled={!canAlign}
-          title="Align vertical centres (first selected is the reference)"
+          title={`Align vertical centres — first selected is the reference (${KB.alignY})`}
           aria-label="Align vertical centres"
         >
           <AlignHorizontalIcon />
@@ -567,17 +779,28 @@ export function App(): JSX.Element {
           className="icon-btn"
           onClick={() => void matchSize()}
           disabled={!canAlign}
-          title="Match size to first selected"
+          title={`Match size to first selected (${KB.matchSize})`}
           aria-label="Match size"
         >
           <MatchSizeIcon />
+        </button>
+        <button
+          className="icon-btn"
+          onClick={() => {
+            if (firstSelected) void fitContainer(firstSelected);
+          }}
+          disabled={!canFitContainer}
+          title={`Fit container to its contents (${KB.fitContainer})`}
+          aria-label="Fit container to contents"
+        >
+          <FitContainerIcon />
         </button>
         <span className="toolbar-divider" aria-hidden />
         <button
           className="icon-btn"
           onClick={() => void onCopyPng()}
           disabled={!layout}
-          title="Copy PNG to clipboard"
+          title={`Copy PNG to clipboard (${KB.copyPng})`}
           aria-label="Copy PNG to clipboard"
         >
           <CopyIcon />
@@ -586,7 +809,7 @@ export function App(): JSX.Element {
           className="icon-btn"
           onClick={() => void onExportSvg()}
           disabled={!layout}
-          title="Export SVG"
+          title={`Export SVG (${KB.exportSvg})`}
           aria-label="Export SVG"
         >
           <ExportSvgIcon />
@@ -595,7 +818,7 @@ export function App(): JSX.Element {
           className="icon-btn"
           onClick={() => void onExportPng()}
           disabled={!layout}
-          title="Export PNG"
+          title={`Export PNG (${KB.exportPng})`}
           aria-label="Export PNG"
         >
           <ExportPngIcon />
@@ -604,7 +827,7 @@ export function App(): JSX.Element {
         <span className="toolbar-wrap" ref={settingsWrapRef}>
           <button
             className="icon-btn"
-            onClick={() => setSettingsOpen((o) => !o)}
+            onClick={onToggleSettings}
             aria-pressed={settingsOpen}
             title="Settings"
             aria-label="Settings"
@@ -641,13 +864,6 @@ export function App(): JSX.Element {
             <WelcomeCard />
           </div>
         )}
-        {source && welcomeOpen && (
-          <div className="welcome-overlay" role="dialog" aria-label="About Daedalus">
-            <div ref={welcomeCardRef} className="welcome-overlay-inner">
-              <WelcomeCard />
-            </div>
-          </div>
-        )}
         <ErrorOverlay errors={errors} onDismiss={() => setErrors([])} />
         <Canvas
           ref={svgRef}
@@ -656,6 +872,16 @@ export function App(): JSX.Element {
           showAnchors={showAnchors}
         />
       </main>
+      {/* Welcome overlay sits at the .app level (not inside .canvas-host) so
+          it covers the visible viewport rather than the canvas's scrollable
+          extent, which can be much larger when the user has panned. */}
+      {source && welcomeOpen && (
+        <div className="welcome-overlay" role="dialog" aria-label="About Daedalus">
+          <div ref={welcomeCardRef} className="welcome-overlay-inner">
+            <WelcomeCard />
+          </div>
+        </div>
+      )}
       {source && (
         <div className="brand-floating" ref={brandRef}>
           <button
@@ -687,7 +913,13 @@ export function App(): JSX.Element {
       {rootPath && (
         <div className="path-floating">
           <span className="path-prefix">Project:&nbsp;</span>
-          <span className="path-text">{rootPath}</span>
+          {/* RTL on the wrapper puts the ellipsis on the visual *left* so the
+              project folder name (the most informative part of the path)
+              stays visible; bdo forces the path characters back to LTR so the
+              path reads in its normal order. */}
+          <span className="path-text" dir="rtl">
+            <bdo dir="ltr">{rootPath}</bdo>
+          </span>
           <button
             type="button"
             className="path-close"
@@ -703,41 +935,22 @@ export function App(): JSX.Element {
   );
 }
 
-import type { Layout } from '@daedalus/shared';
+import type { EdgeRoutes, Layout } from '@daedalus/shared';
 import type { ExportOptions } from './export/svg.js';
 
-// Compute the export bbox from the live SVG so we capture edge routes (which
-// can extend beyond node boxes when libavoid detours around obstacles) and
-// label pills (whose width depends on the rendered text). `getBBox()` on the
-// `.nodes`/`.edges` groups returns the axis-aligned union of their children.
-function exportOpts(svg: SVGSVGElement, layout: Layout): ExportOptions {
+// Compute the export bbox from the layout/routes data, matching the
+// in-canvas export-outline. Using the same `naturalBBox` keeps the displayed
+// "{w} × {h} px" hint and the actual exported file dimensions in lockstep.
+// (We deliberately do *not* read getBBox off the live SVG: that includes
+// label text that overflows node boxes, which made the displayed outline
+// and the exported viewBox disagree.)
+function exportOpts(layout: Layout, routes: EdgeRoutes): ExportOptions {
   const margin = layout.settings.export.margin;
   const showGrid = layout.settings.export.showGrid;
-
-  const groups = ['.containers', '.nodes', '.edges']
-    .map((sel) => svg.querySelector<SVGGElement>(sel))
-    .filter((g): g is SVGGElement => g !== null);
-
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-  for (const g of groups) {
-    const b = g.getBBox();
-    if (b.width === 0 && b.height === 0) continue;
-    if (b.x < minX) minX = b.x;
-    if (b.y < minY) minY = b.y;
-    if (b.x + b.width > maxX) maxX = b.x + b.width;
-    if (b.y + b.height > maxY) maxY = b.y + b.height;
-  }
-
-  // `getBBox()` returns coordinates in each group's *local* space — i.e.
-  // before the `translate(viewOffset)` wrapper that the canvas applies for
-  // pan/auto-center. The exported viewBox is in the SVG's user space, so we
-  // shift the bbox by viewOffset to land where the content actually paints.
   const viewOffset = useGraphStore.getState().viewOffset;
+  const natural = naturalBBox(layout, routes);
 
-  if (!Number.isFinite(minX)) {
+  if (!natural) {
     return {
       margin,
       showGrid,
@@ -754,10 +967,10 @@ function exportOpts(svg: SVGSVGElement, layout: Layout): ExportOptions {
     margin,
     showGrid,
     bbox: {
-      x: minX + viewOffset.x,
-      y: minY + viewOffset.y,
-      w: maxX - minX,
-      h: maxY - minY,
+      x: natural.x + viewOffset.x,
+      y: natural.y + viewOffset.y,
+      w: natural.w,
+      h: natural.h,
     },
   };
 }

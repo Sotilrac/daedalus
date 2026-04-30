@@ -42,23 +42,16 @@ function inlineThemeTokens(source: SVGSVGElement, target: SVGSVGElement): void {
   })
     .filter(Boolean)
     .join(' ');
-  // The editor relies on `app.css` to set the default text size (12px on
-  // `.node text`). That stylesheet doesn't travel with the export, so SVG/PNG
-  // renderers fall back to 16px and labels look oversized. Bake the rules the
-  // export depends on into a `<style>` block.
+  // Inline the font-family rule that lets `<text>` elements pick up the
+  // sans-serif stack without needing app.css. Each text element already
+  // carries its own inline `font-size` presentation attribute (12px node
+  // labels, 11px edge labels, etc.), so we deliberately do *not* set a
+  // global `text { font-size }` rule here — author CSS in the embedded
+  // <style> block beats presentation attributes, and a global rule would
+  // silently inflate edge labels to 12px in the exported file.
   const fontSans = computed.getPropertyValue('--font-sans').trim() || 'sans-serif';
-  const fontMono = computed.getPropertyValue('--font-mono').trim() || 'monospace';
   const styleEl = target.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'style');
-  // Use `:where(...)` for the per-node text rule so it carries zero specificity
-  // — inline `font-size` attributes (e.g. D2's `style.font-size: 60`) on the
-  // <text> elements still win, while SVG/PNG renderers without our app.css
-  // get a sane fallback for unsized text.
-  styleEl.textContent = [
-    tokens ? `svg { ${tokens} }` : '',
-    `text { font-family: ${fontSans}; font-size: 12px; }`,
-    `:where(.node) text { font-family: ${fontSans}; }`,
-    `.size-label, .version, .toolbar { font-family: ${fontMono}; }`,
-  ]
+  styleEl.textContent = [tokens ? `svg { ${tokens} }` : '', `text { font-family: ${fontSans}; }`]
     .filter(Boolean)
     .join('\n');
   target.insertBefore(styleEl, target.firstChild);

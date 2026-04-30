@@ -91,6 +91,65 @@ describe('reconcileLayout', () => {
     expect(r.needsRelayout).toBe(false);
   });
 
+  it('places a new child inside its existing container parent', () => {
+    const prev: Model = {
+      nodes: {
+        group: { label: 'group', shape: 'rectangle', style: {}, rawWidth: 320, rawHeight: 200 },
+        'group.child1': {
+          label: 'child1',
+          shape: 'rectangle',
+          style: {},
+          rawWidth: 96,
+          rawHeight: 64,
+        },
+      },
+      edges: {},
+    };
+    const next: Model = {
+      nodes: {
+        ...prev.nodes,
+        'group.child2': {
+          label: 'child2',
+          shape: 'rectangle',
+          style: {},
+          rawWidth: 96,
+          rawHeight: 64,
+        },
+      },
+      edges: {},
+    };
+    const layout: Layout = {
+      ...baseLayout(),
+      nodes: {
+        group: {
+          x: 16,
+          y: 16,
+          w: 320,
+          h: 200,
+          connections: { top: [], right: [], bottom: [], left: [] },
+        },
+        'group.child1': {
+          x: 32,
+          y: 32,
+          w: 96,
+          h: 64,
+          connections: { top: [], right: [], bottom: [], left: [] },
+        },
+      },
+      edges: {},
+    };
+
+    const r = reconcileLayout(layout, prev, next);
+    const c2 = r.layout.nodes['group.child2'];
+    expect(c2).toBeDefined();
+    // Lands inside the group, below child1, with one grid cell of padding.
+    const group = r.layout.nodes.group;
+    expect(group).toBeDefined();
+    expect(c2!.x).toBeGreaterThanOrEqual(group!.x);
+    expect(c2!.x + c2!.w).toBeLessThanOrEqual(group!.x + group!.w);
+    expect(c2!.y).toBeGreaterThan(layout.nodes['group.child1']!.y);
+  });
+
   it('connects a freshly-placed new node to an existing node', () => {
     const prev = baseModel();
     const next = baseModel();

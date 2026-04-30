@@ -64,6 +64,10 @@ export interface GraphState {
     inputPath: string;
     prevModel?: Model | null;
     prevLayout?: Layout | null;
+    // When true, the layout that was live at call-time is pushed onto the
+    // undo stack rather than discarded. Used by manual relayout so the user
+    // can revert the engine's pass.
+    preserveHistory?: boolean;
   }): Promise<void>;
   moveNode(id: NodeId, x: number, y: number): Promise<void>;
   // Batched move: each entry's `(x, y)` is the desired top-left for that
@@ -86,6 +90,10 @@ export interface GraphState {
   // Resize every selected node to match the first selected node's w/h,
   // anchored at each node's centre so they don't appear to jump.
   matchSize(): Promise<void>;
+  // Resize a container node so it tightly encloses all of its descendants
+  // plus a margin, repositioning it to centre on the descendants' bbox.
+  // Descendant positions are left untouched.
+  fitContainer(id: NodeId): Promise<void>;
   undo(): Promise<void>;
   redo(): Promise<void>;
   closeProject(): void;
@@ -139,7 +147,11 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     set({ viewOffset: o });
   },
 
-  async loadFromCompile({ files, inputPath, prevModel, prevLayout }) {
+  async loadFromCompile({ files, inputPath, prevModel, prevLayout, preserveHistory }) {
+    // Snapshot the live layout/past *before* compile work runs so the undo
+    // stack reflects what the user was looking at at call time.
+    const priorState = preserveHistory ? get() : null;
+
     const outcome = await compileD2({ files, inputPath, layout: 'elk' });
     if (!outcome.ok) throw new Error(outcome.errors.map((e) => e.raw).join('\n'));
 
@@ -165,15 +177,25 @@ export const useGraphStore = create<GraphState>((set, get) => ({
 
     const routes = await routeEdges(model, layout);
     const plan = buildRenderPlan({ model, layout, routes });
-    // External D2 changes invalidate prior history: undoing past a reload
-    // would reapply layout to a model that may not contain those nodes/edges.
+    // Default: external D2 changes invalidate prior history: undoing past a
+    // reload would reapply layout to a model that may not contain those
+    // nodes/edges. With `preserveHistory: true`, the manual relayout path
+    // pushes the pre-relayout layout onto `past` so the user can undo it.
+    let nextPast: Layout[] = [];
+    if (priorState && priorState.layout) {
+      const trimmed =
+        priorState.past.length >= MAX_HISTORY
+          ? priorState.past.slice(priorState.past.length - MAX_HISTORY + 1)
+          : priorState.past;
+      nextPast = [...trimmed, priorState.layout];
+    }
     set({
       model,
       layout,
       routes,
       plan,
       needsRelayout,
-      past: [],
+      past: nextPast,
       future: [],
       gestureSnapshotTaken: false,
       // Stash the engine's untouched output so the user can flip between
@@ -518,6 +540,65 @@ export const useGraphStore = create<GraphState>((set, get) => ({
       nextNodes[id] = { ...n, x: newX, y: newY, w: refW, h: refH };
     }
     const nextLayout: Layout = { ...layout, nodes: nextNodes };
+    const routes = await routeEdges(model, nextLayout);
+    const plan = buildRenderPlan({ model, layout: nextLayout, routes });
+    set({ layout: nextLayout, routes, plan });
+  },
+
+  async fitContainer(id) {
+    const { model, layout, showingAuto } = get();
+    if (!model || !layout || showingAuto) return;
+    const node = layout.nodes[id];
+    if (!node) return;
+    const ids = Object.keys(layout.nodes);
+    const children = descendantIds(ids, id);
+    if (children.length === 0) return;
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const cid of children) {
+      const c = layout.nodes[cid];
+      if (!c) continue;
+      if (c.x < minX) minX = c.x;
+      if (c.y < minY) minY = c.y;
+      if (c.x + c.w > maxX) maxX = c.x + c.w;
+      if (c.y + c.h > maxY) maxY = c.y + c.h;
+    }
+    if (!Number.isFinite(minX)) return;
+
+    const grid = layout.grid.size;
+    // Resize step matches the manual resize handle (grid * 2), so the fit
+    // lands on the same lattice the user can subsequently nudge along.
+    // Power-of-2 snapping is reserved for *creating* nodes; here the contents
+    // are already laid out and we want a tight enclosure, not a huge box.
+    const step = grid * 2;
+    const margin = grid;
+    const targetW = maxX - minX + margin * 2;
+    const targetH = maxY - minY + margin * 2;
+    const newW = Math.max(step, Math.ceil(targetW / step) * step);
+    const newH = Math.max(step, Math.ceil(targetH / step) * step);
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    let nx = snap(cx - newW / 2, grid);
+    let ny = snap(cy - newH / 2, grid);
+
+    // Clamp to grandparent if this container is itself nested.
+    const par = parentId(id);
+    const parentNode = par ? layout.nodes[par] : null;
+    if (parentNode) {
+      nx = Math.max(parentNode.x, Math.min(parentNode.x + parentNode.w - newW, nx));
+      ny = Math.max(parentNode.y, Math.min(parentNode.y + parentNode.h - newH, ny));
+    }
+
+    if (nx === node.x && ny === node.y && newW === node.w && newH === node.h) return;
+
+    snapshotForHistory(set, get);
+    const nextLayout: Layout = {
+      ...layout,
+      nodes: { ...layout.nodes, [id]: { ...node, x: nx, y: ny, w: newW, h: newH } },
+    };
     const routes = await routeEdges(model, nextLayout);
     const plan = buildRenderPlan({ model, layout: nextLayout, routes });
     set({ layout: nextLayout, routes, plan });
