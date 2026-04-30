@@ -81,6 +81,10 @@ export interface GraphState {
   clearSelection(): void;
   swapAnchor(node: NodeId, side: Side, edgeId: EdgeId, offset: number): Promise<void>;
   moveEdgeAnchor(node: NodeId, edgeId: EdgeId, toSide: Side, toIndex: number): Promise<void>;
+  // Slide an edge label along its route. `t` is a fraction (0..1) of arc
+  // length; clamped to [0.04, 0.96] so the label never sits exactly on
+  // top of the arrow tip.
+  moveEdgeLabel(edgeId: EdgeId, t: number): void;
   setTheme(theme: 'slate' | 'paper'): void;
   updateSettings(patch: SettingsPatch): Promise<void>;
   // Align centres of every selected node to the first selected node's
@@ -442,6 +446,26 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     const routes = await routeEdges(model, nextLayout);
     const plan = buildRenderPlan({ model, layout: nextLayout, routes });
     set({ layout: nextLayout, routes, plan });
+  },
+
+  moveEdgeLabel(edgeId, t) {
+    const { model, layout, routes, showingAuto } = get();
+    if (!model || !layout || showingAuto) return;
+    const edge = layout.edges[edgeId];
+    if (!edge) return;
+    const clamped = Math.max(0.04, Math.min(0.96, t));
+    const current = edge.labelT ?? 0.5;
+    if (Math.abs(current - clamped) < 1e-3) return;
+    snapshotForHistory(set, get);
+    const nextLayout: Layout = {
+      ...layout,
+      edges: { ...layout.edges, [edgeId]: { ...edge, labelT: clamped } },
+    };
+    // Routes don't change — only the label's anchor along the existing
+    // polyline does — so we reuse the cached routes and just rebuild the
+    // render plan to recompute the midpoint.
+    const plan = buildRenderPlan({ model, layout: nextLayout, routes });
+    set({ layout: nextLayout, plan });
   },
 
   setTheme(theme) {

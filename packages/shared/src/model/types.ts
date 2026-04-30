@@ -112,6 +112,11 @@ export interface NodeLayout {
 export interface EdgeLayout {
   fromSide: Side;
   toSide: Side;
+  // Position of the label along the route's arc length, 0..1 (0 = at the
+  // source pin, 1 = at the destination pin). Default 0.5 (midpoint).
+  // Stored on the layout so a manual drag survives re-routing and is
+  // round-tripped through the sidecar.
+  labelT?: number;
 }
 
 export interface GridConfig {

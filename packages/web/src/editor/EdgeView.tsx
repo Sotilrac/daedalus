@@ -1,4 +1,7 @@
+import { useRef } from 'react';
 import type { Arrowhead, Point, RenderEdge } from '@daedalus/shared';
+import { projectOntoRoute } from '@daedalus/shared';
+import { useGraphStore } from '../store/graphStore.js';
 
 const LABEL_FONT_SIZE = 11;
 const LABEL_PAD_X = 6;
@@ -79,18 +82,119 @@ export function EdgeView({ edge }: { edge: RenderEdge }): JSX.Element {
       {dstArrow &&
         dstArrow !== 'none' &&
         renderArrow(edge.route, 'dst', dstArrow, stroke, strokeWidth, opacity)}
-      {edge.label && (
-        <text
-          x={edge.midpoint.x}
-          y={edge.midpoint.y}
-          textAnchor="middle"
-          dominantBaseline="central"
-          fill={edge.style.fontColor}
-          fontSize={LABEL_FONT_SIZE}
+      {edge.label && labelRect && (
+        <EdgeLabel
+          edgeId={edge.id}
+          route={edge.route}
+          rect={labelRect}
+          midpoint={edge.midpoint}
+          color={edge.style.fontColor}
         >
           {edge.label}
-        </text>
+        </EdgeLabel>
       )}
+    </g>
+  );
+}
+
+const DRAG_THRESHOLD = 3; // px before treating a press as a drag
+
+// Renders the edge label and lets the user drag it along the route. The
+// label sits at `midpoint` (computed from `EdgeLayout.labelT`); during
+// drag we project the cursor onto the route polyline, convert to an arc-
+// length fraction, and dispatch `moveEdgeLabel` so the new t persists.
+function EdgeLabel({
+  edgeId,
+  route,
+  rect,
+  midpoint,
+  color,
+  children,
+}: {
+  edgeId: string;
+  route: Point[];
+  rect: { x: number; y: number; w: number; h: number };
+  midpoint: Point;
+  color: string;
+  children: React.ReactNode;
+}): JSX.Element {
+  const moveEdgeLabel = useGraphStore((s) => s.moveEdgeLabel);
+  const dragRef = useRef<{ pointerId: number; moved: boolean; startX: number; startY: number }>(
+    null,
+  );
+
+  const onPointerDown = (e: React.PointerEvent<SVGGElement>): void => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragRef.current = {
+      pointerId: e.pointerId,
+      moved: false,
+      startX: e.clientX,
+      startY: e.clientY,
+    };
+    useGraphStore.getState().setInteracting(true);
+  };
+
+  const onPointerMove = (e: React.PointerEvent<SVGGElement>): void => {
+    const d = dragRef.current;
+    if (!d || d.pointerId !== e.pointerId) return;
+    if (!d.moved) {
+      if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < DRAG_THRESHOLD) return;
+      d.moved = true;
+    }
+    // Convert client coords → SVG user space using the canvas's CTM.
+    const svg = e.currentTarget.ownerSVGElement;
+    if (!svg) return;
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX;
+    pt.y = e.clientY;
+    const ctm = e.currentTarget.getScreenCTM();
+    if (!ctm) return;
+    const local = pt.matrixTransform(ctm.inverse());
+    const t = projectOntoRoute(route, { x: local.x, y: local.y });
+    moveEdgeLabel(edgeId, t);
+  };
+
+  const onPointerUp = (e: React.PointerEvent<SVGGElement>): void => {
+    const d = dragRef.current;
+    if (!d || d.pointerId !== e.pointerId) return;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    dragRef.current = null;
+    useGraphStore.getState().setInteracting(false);
+  };
+
+  // Double-click resets the label to the route's midpoint (t = 0.5).
+  const onDoubleClick = (e: React.MouseEvent<SVGGElement>): void => {
+    e.stopPropagation();
+    moveEdgeLabel(edgeId, 0.5);
+  };
+
+  return (
+    <g
+      className="edge-label"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+      onDoubleClick={onDoubleClick}
+      style={{ cursor: 'grab' }}
+    >
+      {/* Invisible hit area sized to the label rect so a click anywhere
+          on/near the text grabs it for dragging. Without this, only the
+          glyph strokes are clickable. */}
+      <rect x={rect.x} y={rect.y} width={rect.w} height={rect.h} fill="transparent" />
+      <text
+        x={midpoint.x}
+        y={midpoint.y}
+        textAnchor="middle"
+        dominantBaseline="central"
+        fill={color}
+        fontSize={LABEL_FONT_SIZE}
+        pointerEvents="none"
+      >
+        {children}
+      </text>
     </g>
   );
 }

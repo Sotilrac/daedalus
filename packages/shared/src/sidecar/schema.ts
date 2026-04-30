@@ -32,6 +32,7 @@ const edgeSchema: JSONSchemaType<EdgeLayout> = {
   properties: {
     fromSide: { type: 'string', enum: ['top', 'right', 'bottom', 'left'] },
     toSide: { type: 'string', enum: ['top', 'right', 'bottom', 'left'] },
+    labelT: { type: 'number', nullable: true, minimum: 0, maximum: 1 },
   },
   required: ['fromSide', 'toSide'],
   additionalProperties: false,

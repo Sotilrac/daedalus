@@ -103,7 +103,8 @@ export function buildRenderPlan({ model, layout, routes, theme }: BuildPlanInput
   const edges: RenderEdge[] = Object.entries(model.edges).map(([id, e]) => {
     const route = routes[id] ?? [];
     const path = polylineToPath(route);
-    const midpoint = labelPoint(route);
+    const t = layout.edges[id]?.labelT ?? 0.5;
+    const midpoint = pointAlongRoute(route, t);
     const style = resolveEdgeStyle(palette, e.style);
     const out: RenderEdge = {
       id,
@@ -128,11 +129,11 @@ export function buildRenderPlan({ model, layout, routes, theme }: BuildPlanInput
   };
 }
 
-// Place the label at the polyline's arc-length midpoint. For straight routes
-// libavoid often emits multiple collinear segments — picking the longest
-// segment lands the label near one end of the run, so we walk the route and
-// stop when we've covered half the total length.
-export function labelPoint(route: readonly Point[]): Point {
+// Place a point at the given fraction (0..1) of the polyline's arc length.
+// 0 = source endpoint, 1 = destination endpoint, 0.5 = midpoint. The label
+// rendering uses this both for the default midpoint and for user-dragged
+// positions stored on EdgeLayout.labelT.
+export function pointAlongRoute(route: readonly Point[], t: number): Point {
   if (route.length === 0) return { x: 0, y: 0 };
   if (route.length === 1) return route[0] ?? { x: 0, y: 0 };
 
@@ -145,20 +146,73 @@ export function labelPoint(route: readonly Point[]): Point {
   }
   if (total === 0) return route[0] ?? { x: 0, y: 0 };
 
-  const half = total / 2;
+  const clamped = Math.max(0, Math.min(1, t));
+  const target = total * clamped;
   let acc = 0;
   for (let i = 0; i < route.length - 1; i += 1) {
     const a = route[i];
     const b = route[i + 1];
     if (!a || !b) continue;
     const len = Math.hypot(b.x - a.x, b.y - a.y);
-    if (acc + len >= half) {
-      const t = len === 0 ? 0 : (half - acc) / len;
-      return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+    if (acc + len >= target) {
+      const f = len === 0 ? 0 : (target - acc) / len;
+      return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
     }
     acc += len;
   }
   return route[route.length - 1] ?? { x: 0, y: 0 };
+}
+
+// Backward-compatible alias for the midpoint case used by tests.
+export function labelPoint(route: readonly Point[]): Point {
+  return pointAlongRoute(route, 0.5);
+}
+
+// Project a query point onto the polyline; return the t (0..1) of the
+// nearest point along arc length. Used by the edge-label drag handler to
+// turn a cursor position into a `labelT` to store on EdgeLayout.
+export function projectOntoRoute(route: readonly Point[], p: Point): number {
+  if (route.length < 2) return 0.5;
+  let total = 0;
+  const lens: number[] = [];
+  for (let i = 0; i < route.length - 1; i += 1) {
+    const a = route[i];
+    const b = route[i + 1];
+    if (!a || !b) {
+      lens.push(0);
+      continue;
+    }
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    lens.push(len);
+    total += len;
+  }
+  if (total === 0) return 0.5;
+
+  let bestT = 0.5;
+  let bestDist = Infinity;
+  let acc = 0;
+  for (let i = 0; i < route.length - 1; i += 1) {
+    const a = route[i];
+    const b = route[i + 1];
+    const len = lens[i] ?? 0;
+    if (!a || !b || len === 0) {
+      acc += len;
+      continue;
+    }
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const u = ((p.x - a.x) * dx + (p.y - a.y) * dy) / (len * len);
+    const cl = Math.max(0, Math.min(1, u));
+    const projX = a.x + dx * cl;
+    const projY = a.y + dy * cl;
+    const dist = Math.hypot(p.x - projX, p.y - projY);
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestT = (acc + len * cl) / total;
+    }
+    acc += len;
+  }
+  return bestT;
 }
 
 // Map D2's `labelPosition` enum (e.g. "INSIDE_TOP_CENTER", "OUTSIDE_BOTTOM_LEFT")
