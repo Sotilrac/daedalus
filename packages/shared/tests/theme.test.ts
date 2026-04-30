@@ -42,6 +42,30 @@ describe('resolveNodeStyle', () => {
     expect(r.fontWeight).toBe(600);
     expect(r.fontStyle).toBe('italic');
   });
+
+  it('keeps an explicit fontColor regardless of theme', () => {
+    expect(resolveNodeStyle(slatePalette, { fontColor: '#1e40af' }).fontColor).toBe('#1e40af');
+    expect(resolveNodeStyle(paperPalette, { fontColor: '#1e40af' }).fontColor).toBe('#1e40af');
+  });
+
+  it('derives a dark ink for custom light fills (theme-independent)', () => {
+    const slate = resolveNodeStyle(slatePalette, { fill: '#dbeafe' }).fontColor;
+    const paper = resolveNodeStyle(paperPalette, { fill: '#dbeafe' }).fontColor;
+    expect(slate).toBe(paper);
+    expect(slate).not.toBe(slatePalette.ink);
+  });
+
+  it('derives a light ink for custom dark fills', () => {
+    const slate = resolveNodeStyle(slatePalette, { fill: '#1f1f1f' }).fontColor;
+    const paper = resolveNodeStyle(paperPalette, { fill: '#1f1f1f' }).fontColor;
+    expect(slate).toBe(paper);
+    expect(slate).not.toBe(paperPalette.ink);
+  });
+
+  it('still falls back to palette ink when no custom fill is set', () => {
+    expect(resolveNodeStyle(slatePalette, {}).fontColor).toBe(slatePalette.ink);
+    expect(resolveNodeStyle(paperPalette, {}).fontColor).toBe(paperPalette.ink);
+  });
 });
 
 describe('resolveEdgeStyle', () => {
