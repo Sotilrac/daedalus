@@ -5,6 +5,7 @@ import { TauriFolderSource, pickFolderViaTauri } from './sources/tauriFolderSour
 import { readAllD2 } from './sources/loadFolder.js';
 import { Canvas } from './editor/Canvas.js';
 import { ErrorOverlay } from './editor/ErrorOverlay.js';
+import { PngExportDialog } from './editor/PngExportDialog.js';
 import { SettingsPanel } from './editor/SettingsPanel.js';
 import { WelcomeCard } from './editor/WelcomeCard.js';
 import {
@@ -132,6 +133,7 @@ export function App(): JSX.Element {
   const canFitContainer = selectedIsContainer && !showingAuto;
 
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [pngDialogOpen, setPngDialogOpen] = useState(false);
   // Re-opens the welcome card on top of an open project (the home page renders
   // it unconditionally). Toggled by clicking the bottom-left brand; dismissed
   // by clicking outside the card or pressing Escape.
@@ -162,6 +164,9 @@ export function App(): JSX.Element {
   // Wraps the Settings button + popout panel so an outside click can close
   // the panel without dismissing it when the user interacts inside it.
   const settingsWrapRef = useRef<HTMLSpanElement | null>(null);
+  // Same wrap pattern for the PNG export popout: the dialog must close on
+  // outside-click without dismissing when the user is interacting with it.
+  const pngWrapRef = useRef<HTMLSpanElement | null>(null);
   // Outside-click detection for the welcome overlay: clicks on the brand
   // (which toggles it) or inside the card itself shouldn't dismiss.
   const welcomeCardRef = useRef<HTMLDivElement | null>(null);
@@ -200,6 +205,26 @@ export function App(): JSX.Element {
       document.removeEventListener('keydown', onKey);
     };
   }, [settingsOpen]);
+
+  // Dismiss the PNG export popout on outside-click or Escape.
+  useEffect(() => {
+    if (!pngDialogOpen) return undefined;
+    const onPointer = (e: MouseEvent): void => {
+      const wrap = pngWrapRef.current;
+      if (!wrap) return;
+      if (e.target instanceof Node && wrap.contains(e.target)) return;
+      setPngDialogOpen(false);
+    };
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setPngDialogOpen(false);
+    };
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [pngDialogOpen]);
 
   // Same dismiss-on-outside pattern for the welcome overlay (project-open
   // case). The home-page welcome card has no source loaded and is always
@@ -566,24 +591,32 @@ export function App(): JSX.Element {
   // closes over the ref, declared earlier) always invokes the live closure.
   onCenterRef.current = onCenter;
 
-  const onExportPng = useCallback(async () => {
-    if (!svgRef.current || !layout) return;
-    const defaultPath = exportDefaultPath(rootPath, 'png');
-    const dialogOpts: Parameters<typeof saveDialog>[0] = {
-      filters: [{ name: 'PNG', extensions: ['png'] }],
-      defaultPath,
-    };
-    const path = await saveDialog(dialogOpts);
-    if (!path) return;
-    const finalPath = ensureExtension(path, 'png');
-    const routes = useGraphStore.getState().routes;
-    // Scale 1×: the PNG's pixel dimensions match the "{w} × {h} px" hint
-    // shown next to the export outline. Bumping the scale here previously
-    // shipped 2× pixels, which silently doubled the file's reported size.
-    const blob = await svgToPngBlob(svgRef.current, exportOpts(layout, routes), 1);
-    await writeFile(finalPath, new Uint8Array(await blob.arrayBuffer()));
-    rememberExportDir(finalPath);
-  }, [rootPath, layout]);
+  // PNG export at a user-chosen pixel width. Scale = targetWidth/sourceWidth
+  // is forwarded to the rasteriser; the rasteriser multiplies the canvas
+  // dimensions by `scale`, so width=sourceWidth produces a 1× file and
+  // width=2*sourceWidth produces a 2× file.
+  const onExportPngAtSize = useCallback(
+    async (targetWidth: number, _targetHeight: number) => {
+      if (!svgRef.current || !layout) return;
+      const defaultPath = exportDefaultPath(rootPath, 'png');
+      const dialogOpts: Parameters<typeof saveDialog>[0] = {
+        filters: [{ name: 'PNG', extensions: ['png'] }],
+        defaultPath,
+      };
+      const path = await saveDialog(dialogOpts);
+      if (!path) return;
+      const finalPath = ensureExtension(path, 'png');
+      const routes = useGraphStore.getState().routes;
+      const opts = exportOpts(layout, routes);
+      const sourceWidth = opts.bbox.w + opts.margin * 2;
+      const scale = sourceWidth > 0 ? targetWidth / sourceWidth : 1;
+      const blob = await svgToPngBlob(svgRef.current, opts, scale);
+      await writeFile(finalPath, new Uint8Array(await blob.arrayBuffer()));
+      rememberExportDir(finalPath);
+      setPngDialogOpen(false);
+    },
+    [rootPath, layout],
+  );
 
   const onToggleEngine = useCallback(() => {
     if (!autoLayout || !layout) return;
@@ -661,7 +694,10 @@ export function App(): JSX.Element {
       void onExportSvg();
     },
     onExportPng: () => {
-      void onExportPng();
+      // The PNG path goes through the size-picker popout, not the save
+      // dialog directly: toggling here mirrors what clicking the toolbar
+      // button does. The Export button inside the popout commits.
+      setPngDialogOpen((o) => !o);
     },
     canUseReload: !!source && !autoReload,
     canUseEngine: !!autoLayout && !!layout,
@@ -670,6 +706,17 @@ export function App(): JSX.Element {
     canFitContainer,
     canExport: !!layout,
   };
+
+  // Source dimensions for the PNG dialog: bbox + margin in user-space px.
+  // Computed lazily from the live layout/routes when the dialog is open.
+  const pngSourceSize = ((): { w: number; h: number } | null => {
+    if (!pngDialogOpen || !layout) return null;
+    const opts = exportOpts(layout, useGraphStore.getState().routes);
+    return {
+      w: Math.round(opts.bbox.w + opts.margin * 2),
+      h: Math.round(opts.bbox.h + opts.margin * 2),
+    };
+  })();
 
   return (
     <div className="app" data-theme={theme}>
@@ -814,15 +861,25 @@ export function App(): JSX.Element {
         >
           <ExportSvgIcon />
         </button>
-        <button
-          className="icon-btn"
-          onClick={() => void onExportPng()}
-          disabled={!layout}
-          title={`Export PNG (${KB.exportPng})`}
-          aria-label="Export PNG"
-        >
-          <ExportPngIcon />
-        </button>
+        <span className="toolbar-wrap" ref={pngWrapRef}>
+          <button
+            className="icon-btn"
+            onClick={() => setPngDialogOpen((o) => !o)}
+            disabled={!layout}
+            aria-pressed={pngDialogOpen}
+            title={`Export PNG (${KB.exportPng})`}
+            aria-label="Export PNG"
+          >
+            <ExportPngIcon />
+          </button>
+          {pngDialogOpen && pngSourceSize && (
+            <PngExportDialog
+              defaultWidth={pngSourceSize.w}
+              defaultHeight={pngSourceSize.h}
+              onExport={(w, h) => void onExportPngAtSize(w, h)}
+            />
+          )}
+        </span>
         <span className="toolbar-divider" aria-hidden />
         <span className="toolbar-wrap" ref={settingsWrapRef}>
           <button
