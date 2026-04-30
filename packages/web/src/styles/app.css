@@ -147,6 +147,7 @@ button:disabled {
     the global `button { text-transform: uppercase; ... }` defaults so the
     Daedalus name reads in mixed-case display type. The `help` cursor
     advertises the click target as informational. */
+  position: relative;
   background: transparent;
   border: 0;
   padding: 0;
@@ -162,6 +163,46 @@ button:disabled {
   text-shadow:
     0 0 6px rgb(var(--ink-rgb) / 25%),
     0 0 14px rgb(var(--ink-rgb) / 12%);
+}
+
+/* Loading state: the brand "writes itself in" using its final theme ink
+  colour. The base button text becomes transparent (and drops its glow so
+  it doesn't render a shadow around invisible glyphs); an absolutely-
+  positioned pseudo-element ::after holds a copy of the text in
+  `var(--ink)`, with a clip-path that shrinks its right inset from 100%
+  to 0 and back. As the clip animates the letters appear left-to-right
+  in their final colour — no separate accent tint, just the same ink the
+  text settles into once the load finishes. */
+.brand-floating .display-name[data-loading='true'] {
+  color: transparent;
+  text-shadow: none;
+}
+
+.brand-floating .display-name[data-loading='true']::after {
+  content: attr(data-label);
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: var(--ink);
+  text-shadow: none;
+  clip-path: inset(0 100% 0 0);
+
+  /* One-shot reveal: fill from left to right and *stay* filled
+    (animation-fill-mode: forwards). Once the load finishes, the
+    `data-loading` attribute drops, the pseudo unmounts, and the base
+    button text takes over with the same colour, so there's no visible
+    flicker between the two states. */
+  animation: brand-fill-up 1350ms ease-out forwards;
+}
+
+@keyframes brand-fill-up {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+
+  to {
+    clip-path: inset(0 0% 0 0);
+  }
 }
 
 .brand-floating .display-name:focus-visible {
@@ -362,6 +403,16 @@ button:disabled {
 
 .canvas-host svg {
   display: block;
+}
+
+/* Boot-time placeholder: there's a saved project folder being recompiled
+  but the render plan isn't ready yet. Show the dot grid behind the empty
+  area so the user sees the editor chrome immediately instead of a blank
+  paper rectangle. The Canvas SVG, once it mounts, paints its own grid on
+  top and the placeholder vanishes. */
+.canvas-host[data-loading='true'] {
+  background-image: radial-gradient(circle, var(--grid-dot) 1.2px, transparent 1.5px);
+  background-size: 16px 16px;
 }
 
 .banner {

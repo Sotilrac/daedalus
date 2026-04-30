@@ -57,14 +57,11 @@ import {
   useStoredEnum,
   useStoredFlag,
 } from './prefs.js';
-import { DISPLAY_NAME, VERSION_LABEL } from './branding.js';
+import { DISPLAY_NAME } from './branding.js';
 import { SAMPLE_D2 } from './sample.js';
-import { onExternalLink } from './util/openExternal.js';
 import { ensureExtension, exportDefaultPath, rememberExportDir } from './util/paths.js';
 import { UpdateIndicator } from './util/UpdateIndicator.js';
 import { useUpdaterStore } from './util/updater.js';
-
-const RELEASES_URL = 'https://github.com/Sotilrac/daedalus/releases';
 
 // Detect macOS at module load. Tauri's webview reports a real user-agent so
 // this matches the underlying OS (Mac → ⌘ shortcuts, Windows/Linux → Ctrl).
@@ -101,12 +98,14 @@ export function App(): JSX.Element {
   const rootPath = useSourceStore((s) => s.rootPath);
   const entryPath = useSourceStore((s) => s.entryPath);
   const errors = useSourceStore((s) => s.errors);
+  const isLoading = useSourceStore((s) => s.isLoading);
   const setSource = useSourceStore((s) => s.setSource);
   const setFiles = useSourceStore((s) => s.setFiles);
   const setErrors = useSourceStore((s) => s.setErrors);
   const setLoading = useSourceStore((s) => s.setLoading);
 
   const layout = useGraphStore((s) => s.layout);
+  const plan = useGraphStore((s) => s.plan);
   const needsRelayout = useGraphStore((s) => s.needsRelayout);
   const setStoreTheme = useGraphStore((s) => s.setTheme);
   const showingAuto = useGraphStore((s) => s.showingAuto);
@@ -955,6 +954,7 @@ export function App(): JSX.Element {
       </nav>
       <main
         className="canvas-host"
+        data-loading={!!source && !plan ? 'true' : undefined}
         ref={hostRef}
         onContextMenu={(e) => {
           // The canvas is a non-text surface; suppress the OS context menu
@@ -990,6 +990,8 @@ export function App(): JSX.Element {
           <button
             type="button"
             className="display-name"
+            data-label={DISPLAY_NAME}
+            data-loading={isLoading || !plan ? 'true' : undefined}
             aria-label="About Daedalus"
             aria-pressed={welcomeOpen}
             onClick={() => setWelcomeOpen((o) => !o)}
@@ -999,16 +1001,9 @@ export function App(): JSX.Element {
           <span className="author" aria-hidden>
             by Carlos Asmat
           </span>
-          <a
-            className="version"
-            href={RELEASES_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="View releases on GitHub"
-            onClick={onExternalLink(RELEASES_URL)}
-          >
-            {VERSION_LABEL}
-          </a>
+          {/* Version label lives on the WelcomeCard now; the update pill
+              stays here so an available update is still visible without
+              popping the welcome dialog. */}
           <UpdateIndicator />
         </div>
       )}
