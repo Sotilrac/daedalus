@@ -58,7 +58,7 @@
         "piedpiper.founders.richard": {
           "x": 1216,
           "y": -2272,
-          "w": 160,
+          "w": 128,
           "h": 96,
           "connections": {
             "top": [
@@ -77,7 +77,7 @@
         "piedpiper.founders.erlich": {
           "x": 960,
           "y": -2432,
-          "w": 160,
+          "w": 192,
           "h": 96,
           "connections": {
             "top": [],
@@ -92,9 +92,9 @@
           }
         },
         "piedpiper.founders.jared": {
-          "x": 1216,
+          "x": 1184,
           "y": -2432,
-          "w": 160,
+          "w": 192,
           "h": 96,
           "connections": {
             "top": [],
@@ -136,9 +136,9 @@
           }
         },
         "piedpiper.eng.dinesh": {
-          "x": 1472,
+          "x": 1488,
           "y": -2432,
-          "w": 160,
+          "w": 128,
           "h": 96,
           "connections": {
             "top": [],
@@ -153,9 +153,9 @@
         },
         "piedpiper.eng.bighead": {
           "x": 1728,
-          "y": -2256,
+          "y": -2272,
           "w": 128,
-          "h": 96,
+          "h": 128,
           "connections": {
             "top": [],
             "right": [
@@ -224,7 +224,7 @@
         },
         "pipeline.ingestor": {
           "x": 1488,
-          "y": -1616,
+          "y": -1600,
           "w": 128,
           "h": 96,
           "connections": {
@@ -240,7 +240,7 @@
         },
         "pipeline.weissman": {
           "x": 1744,
-          "y": -1616,
+          "y": -1600,
           "w": 128,
           "h": 96,
           "connections": {
@@ -256,7 +256,7 @@
         },
         "pipeline.tiptotip": {
           "x": 1744,
-          "y": -1456,
+          "y": -1440,
           "w": 128,
           "h": 96,
           "connections": {
@@ -271,9 +271,9 @@
           }
         },
         "pipeline.output": {
-          "x": 1376,
-          "y": -1440,
-          "w": 160,
+          "x": 1360,
+          "y": -1424,
+          "w": 192,
           "h": 64,
           "connections": {
             "top": [],
@@ -289,7 +289,7 @@
         },
         "pipeline.cache": {
           "x": 1744,
-          "y": -1312,
+          "y": -1296,
           "w": 128,
           "h": 96,
           "connections": {
@@ -305,7 +305,7 @@
         },
         "pipeline.blobstore": {
           "x": 1376,
-          "y": -1168,
+          "y": -1152,
           "w": 160,
           "h": 128,
           "connections": {
@@ -490,9 +490,9 @@
           }
         },
         "money.russ": {
-          "x": 432,
+          "x": 416,
           "y": -2304,
-          "w": 128,
+          "w": 160,
           "h": 96,
           "connections": {
             "top": [],
