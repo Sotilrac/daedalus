@@ -677,6 +677,11 @@
           "toSide": "top",
           "labelT": 0.12316176470588243
         },
+        "pipeline.blobstore->newinternet.server#0": {
+          "fromSide": "left",
+          "toSide": "right",
+          "labelT": 0.395631067961165
+        },
         "pipeline.blobstore->newinternet.fridge#0": {
           "fromSide": "left",
           "toSide": "right",
@@ -764,11 +769,6 @@
           "fromSide": "left",
           "toSide": "top",
           "labelT": 0.7418981481481481
-        },
-        "pipeline.blobstore->newinternet.server#0": {
-          "fromSide": "left",
-          "toSide": "right",
-          "labelT": 0.395631067961165
         }
       },
       "unplaced": []
