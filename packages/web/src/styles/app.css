@@ -632,17 +632,41 @@ button:disabled {
   color: var(--ink-muted);
 }
 
-.welcome-footer a {
+.welcome-footer a,
+.welcome-version {
   color: var(--ink-muted);
   text-decoration: none;
   transition: color 0.12s ease;
 }
 
+.welcome-version {
+  font: inherit;
+  letter-spacing: inherit;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.welcome-version:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
 .welcome-footer a:hover,
-.welcome-footer a:focus-visible {
+.welcome-footer a:focus-visible,
+.welcome-version:not(:disabled):hover,
+.welcome-version:not(:disabled):focus-visible {
   color: var(--accent);
   text-decoration: underline;
   outline: none;
+}
+
+/* Pulled out of the footer so it sits between the header and the body
+ * copy: an available update is the first thing the user sees on the
+ * card, without shouting from the top edge. */
+.welcome-card > .update-pill {
+  justify-self: center;
 }
 
 .node {

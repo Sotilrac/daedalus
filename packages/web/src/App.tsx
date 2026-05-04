@@ -60,7 +60,6 @@ import {
 import { DISPLAY_NAME } from './branding.js';
 import { SAMPLE_D2 } from './sample.js';
 import { ensureExtension, exportDefaultPath, rememberExportDir } from './util/paths.js';
-import { UpdateIndicator } from './util/UpdateIndicator.js';
 import { useUpdaterStore } from './util/updater.js';
 
 // Detect macOS at module load. Tauri's webview reports a real user-agent so
@@ -1015,10 +1014,6 @@ export function App(): JSX.Element {
           <span className="author" aria-hidden>
             by Carlos Asmat
           </span>
-          {/* Version label lives on the WelcomeCard now; the update pill
-              stays here so an available update is still visible without
-              popping the welcome dialog. */}
-          <UpdateIndicator />
         </div>
       )}
       {rootPath && (
